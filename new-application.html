@@ -65,10 +65,10 @@
     <header>
         <div class="header-buttons">
             <!-- Активная кнопка -->
-            <button class="button button-active" id="ButtonMyApplication">Мои заявки</button>
+            <button class="button button-inactive" id="ButtonMyApplication">Мои заявки</button>
 
             <!-- Неактивная кнопка -->
-            <button class="button button-inactive" id="ButtonCreatApplication">Создать новую</button>
+            <button class="button button-active" id="ButtonCreatApplication">Создать новую</button>
         </div>
     </header>
 
@@ -76,11 +76,11 @@
         const ButtonMyApplication = document.getElementById('ButtonMyApplication');
         const ButtonCreatApplication = document.getElementById('ButtonCreatApplication');
 
-        ButtonCreatApplication.addEventListener('click', function() {
-            window.location.href = 'new-application.html';
+        ButtonMyApplication.addEventListener('click', function() {
+            window.location.href = 'home-application.html';
         });
 
-
     </script>
+
 </body>
 </html>

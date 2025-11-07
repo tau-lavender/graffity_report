@@ -1,9 +1,10 @@
-// Переключение между экранами
+
 let tgUsername = "unknown";
 if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
     tgUsername = window.Telegram.WebApp.initDataUnsafe.user?.username || "unknown";
 }
 
+// Переключение между экранами
 function showScreen(screenId, clickedButton) {
     if (!screenId || !clickedButton) return;
     document.querySelector('.screen.active').classList.remove('active');
@@ -16,21 +17,21 @@ function showScreen(screenId, clickedButton) {
 function submitApplication() {
     const address = document.querySelector('.adress-input').value;
     const comment = document.querySelector('.comment-textarea').value;
-    
+
     if (!address || !comment) {
         alert('Пожалуйста, заполните адрес и комментарий');
         return;
     }
-    
+
     // Отправляем просто JSON
     const data = {
         location: address,
         comment: comment,
         username: tgUsername
     };
-    
+
     console.log('Отправляю заявку:', data);
-    
+
     fetch('https://thefid.pythonanywhere.com/api/apply', {
         method: 'POST',
         headers: {
@@ -75,7 +76,7 @@ function loadApplications() {
                 container.innerHTML = '<h2>Мои заявки</h2><p>У вас пока нет заявок</p>';
                 return;
             }
-            
+
             let html = '<h2>Мои заявки</h2><div style="display: flex; flex-direction: column; gap: 10px;">';
             apps.forEach((app, index) => {
                 html += `
@@ -105,7 +106,7 @@ document.querySelectorAll('.auto-expand').forEach(function(textarea) {
 window.addEventListener('DOMContentLoaded', function() {
     // Загружаем список заявок
     loadApplications();
-    
+
     // Привязываем обработчик к кнопке отправки
     const submitBtn = document.querySelector('.submit-btn');
     if (submitBtn) {

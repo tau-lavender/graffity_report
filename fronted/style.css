@@ -1,0 +1,196 @@
+:root {
+    --main-color: #4E3B2C;
+    --inactive-color: #CACACA;
+    --bg-color: #F3F3F3;
+    --white-color: white;
+    --black-color: black;
+    --error-status-color: #D10000;
+    --success-status-color: #818181;
+}
+
+.title-text {
+    color: var(--black-color);
+    font-size: 16px;
+    line-height: 22px;
+}
+
+.button-text {
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.main-text {
+    color: var(--inactive-color);
+    font-size: 12px;
+    line-height: 22px;
+}
+
+.mini-text {
+    color: var(--inactive-color);
+    font-size: 10px;
+    line-height: 15px;
+}
+
+.mini-text.status {
+    color: var(--white-color);
+    padding: 0;
+    margin: 0;
+}
+
+* {
+    font-family: "Inter", sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+}
+
+/*===============header===============*/
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+
+    background-color: var(--white-color);
+    padding: 16px 16px 8px 16px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header-buttons {
+    display: flex;
+    gap: 9px; 
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.button {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: var(--inactive-color);
+
+    text-align: center;
+    color: var(--white-color);
+}
+
+.button.active {
+    background-color: var(--main-color);
+}
+
+/*===============pages===============*/
+.screen {
+    display: none;
+    padding: 76px 16px 16px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.screen.active {
+    display: block;
+}
+
+/*===============all cards===============*/
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: var(--white-color);
+    padding: 10px;
+    margin: 0 0 8px;
+    border-radius: 12px;
+}
+/*===============card add photo===============*/
+.photo-grid {
+    display: flex;
+    gap: 8px;
+}
+
+.photo-slot {
+    flex: 1;
+    height: 99px;
+    border: 2px dashed var(--inactive-color);
+    border-radius: 8px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.photo-icon {
+    width: 22px;
+    height: 18px;
+    background: url('assets/camera.svg') center no-repeat;
+}
+
+/*===============card add adress===============*/
+.adress-input {
+    width: 100%;
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--inactive-color);
+    outline: none;
+
+    box-sizing: border-box;
+    padding: 9px 0 9px 7px;
+}
+
+.adress-input:focus {
+    border: 1px solid var(--main-color);
+}
+
+.adress-input::placeholder {
+    color: var(--inactive-color);
+}
+
+.button-add-adress {
+    width: 100%;
+    padding: 9px 0 9px 7px;
+    border: 1px solid var(--inactive-color);
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: var(--bg-color);
+
+    color: var(--main-color);
+    text-align: left;
+}
+/*===============card add comment===============*/
+.comment-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 7px;
+    border: 1px solid var(--inactive-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    outline: none; /*Убирает браузерную рамку*/
+    resize: none; /*запрещает изменение размера*/
+    overflow-y: hidden; /*Убирает некрасивый скролаб*/
+}
+
+.comment-textarea:focus {
+    border: 1px solid var(--main-color);
+}
+
+.comment-textarea::placeholder {
+    color: var(--inactive-color);
+}
+/*===============button add new application===============*/
+.button-add {
+    width: 100%;
+    padding: 9px 0;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: var(--main-color);
+
+    color: var(--white-color);
+    text-align: center;
+}

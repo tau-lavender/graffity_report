@@ -1,95 +1,113 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Создать заявку - Graffity Report</title>
-    <style>
-        body {
-            font-family: Inter, Arial, sans-serif;
-            margin: 0;
-            padding: 30px;
-            background: #f0f2f5;
-            color: #222;
-        }
-        .container {
-            max-width: 400px;
-            margin: auto;
-            background: #fff;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 4px 16px #0002;
-        }
-        h2 {
-            margin-bottom: 18px;
-        }
-        label, input, textarea, button {
-            width: 100%;
-            margin-bottom: 12px;
-            font-size: 1em;
-        }
-        input, textarea {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-        button {
-            background: #557cff;
-            color: #fff;
-            border: none;
-            padding: 12px;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #335de4;
-        }
-        .msg {
-            margin-top: 10px;
-            color: green;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Создать заявку - Graffity Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: "Inter", Arial, sans-serif; margin: 0; padding: 0; background: #F3F3F3; color: #222; }
+    header { background: white; padding: 16px 16px 8px 16px; box-shadow: 0 2px 6px #0001; }
+    .header-buttons { display: flex; gap: 9px; width: 100%; }
+    .button { flex: 1; text-align: center; padding: 8px 0; border: none; border-radius: 8px; font-size: 14px; line-height: 18px; cursor: pointer; }
+    .button-inactive { background: #CACACA; color: white; }
+    .button-active { background: #4E3B2C; color: white; }
+    .container { max-width: 400px; margin: 36px auto 0 auto; background: #fff; border-radius: 10px; padding: 25px; box-shadow: 0 4px 16px #0002; }
+    h2 { margin-bottom: 18px; }
+    label, input, textarea, button { width: 100%; margin-bottom: 12px; font-size: 1em; }
+    input, textarea { padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
+    button[type="submit"] {
+      background: #557cff;
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 0;
+    }
+    button[type="submit"]:hover { background: #335de4; }
+    .msg { margin-top: 10px; color: green; text-align: center; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Создать новую заявку</h2>
-        <form id="apply-form">
-            <label for="location">Локация</label>
-            <input type="text" name="location" id="location" required placeholder="Укажите место">
-
-            <label for="comment">Комментарий</label>
-            <textarea name="comment" id="comment" required placeholder="Ваш комментарий"></textarea>
-
-            <button type="submit">Отправить заявку</button>
-        </form>
-        <div class="msg" id="result-msg"></div>
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+  let infoBlock = document.createElement('div');
+  infoBlock.style.background = '#ffe';
+  infoBlock.style.color = '#222';
+  infoBlock.style.padding = '10px';
+  infoBlock.style.borderRadius = '8px';
+  infoBlock.style.fontSize = '14px';
+  infoBlock.style.margin = '12px';
+  if (window.Telegram && Telegram.WebApp) {
+    Telegram.WebApp.ready();
+    if (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+      infoBlock.innerHTML = "Это Telegram Mini App!<br>ID: "
+        + Telegram.WebApp.initDataUnsafe.user.id
+        + "<br>Имя: " + Telegram.WebApp.initDataUnsafe.user.first_name;
+    } else {
+      infoBlock.innerHTML = "WebApp загружен, но нет user-info.<br>Откройте через Telegram!";
+    }
+  } else {
+    infoBlock.innerHTML = "Открыто вне Telegram WebApp.<br>Telegram объект не найден!";
+  }
+  document.body.prepend(infoBlock);
+});
+</script>
+  <header>
+    <div class="header-buttons">
+      <button class="button button-inactive" id="ButtonMyApplication">Мои заявки</button>
+      <button class="button button-active" id="ButtonCreatApplication">Создать новую</button>
     </div>
-    <script>
+  </header>
+  <div class="container">
+    <h2>Создать новую заявку</h2>
+    <form id="apply-form">
+      <label for="location">Локация</label>
+      <input type="text" name="location" id="location" required placeholder="Укажите место">
+      <label for="comment">Комментарий</label>
+      <textarea name="comment" id="comment" required placeholder="Ваш комментарий"></textarea>
+      <button type="submit">Отправить заявку</button>
+    </form>
+    <div class="msg" id="result-msg"></div>
+  </div>
+  <script>
+    document.getElementById('ButtonMyApplication').addEventListener('click', function() {
+      window.location.href = 'index.html';
+    });
+    document.getElementById('ButtonCreatApplication').addEventListener('click', function() {
+      window.location.href = 'new-application.html';
+    });
     document.getElementById('apply-form').onsubmit = async function(e) {
-        e.preventDefault();
-        const data = {
-            location: e.target.location.value,
-            comment: e.target.comment.value
-        };
-        try {
-            const res = await fetch('https://thefid.pythonanywhere.com/api/apply', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            const result = await res.json();
-            if (result.success) {
-                document.getElementById('result-msg').textContent = "Заявка успешно отправлена!";
-                e.target.reset();
-            } else {
-                document.getElementById('result-msg').textContent = "Ошибка отправки.";
-            }
-        } catch {
-            document.getElementById('result-msg').textContent = "Ошибка соединения.";
+      e.preventDefault();
+      let tg_id = null;
+      if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+        tg_id = Telegram.WebApp.initDataUnsafe.user.id;
+      }
+      const data = {
+        location: e.target.location.value,
+        comment: e.target.comment.value,
+        tg_id: tg_id
+      };
+      try {
+        const res = await fetch('https://thefid.pythonanywhere.com/api/apply', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) {
+          document.getElementById('result-msg').textContent = "Заявка успешно отправлена!";
+          e.target.reset();
+        } else {
+          document.getElementById('result-msg').textContent = "Ошибка отправки.";
         }
+      } catch {
+        document.getElementById('result-msg').textContent = "Ошибка соединения.";
+      }
     };
-    </script>
+  </script>
 </body>
 </html>

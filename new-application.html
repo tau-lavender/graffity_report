@@ -74,7 +74,7 @@
             comment: e.target.comment.value
         };
         try {
-            const res = await fetch('https://thefid.pythonanywhere.com', {
+            const res = await fetch('https://thefid.pythonanywhere.com/api/apply', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)

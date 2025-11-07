@@ -11,6 +11,15 @@ def apply():
     applications.append(data)
     return jsonify(success=True)
 
+@app.route('/api/my_applications')
+def my_applications():
+    tg_id = request.args.get('tg_id')
+    if not tg_id:
+        return jsonify([])
+    user_apps = [a for a in applications if str(a.get('tg_id')) == tg_id]
+    return jsonify(user_apps)
+
+
 @app.route('/api/applications', methods=['GET'])
 def get_applications():
     return jsonify(applications)

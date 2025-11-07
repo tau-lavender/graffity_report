@@ -69,9 +69,14 @@
     <script>
     document.getElementById('apply-form').onsubmit = async function(e) {
         e.preventDefault();
+        let tg_id = null;
+        if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+            tg_id = Telegram.WebApp.initDataUnsafe.user.id;
+        }
         const data = {
             location: e.target.location.value,
-            comment: e.target.comment.value
+            comment: e.target.comment.value,
+            tg_id : tg_id
         };
         try {
             const res = await fetch('https://thefid.pythonanywhere.com/api/apply', {

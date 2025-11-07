@@ -45,7 +45,7 @@ function submitApplication() {
     .then(result => {
         console.log('Ответ JSON:', result);
         if (result.success) {
-            alert('Заявка успешно отправлена!');
+            alert('Заявка успешно отправлена!', data);
             // Очищаем форму
             document.querySelector('.adress-input').value = '';
             document.querySelector('.comment-textarea').value = '';

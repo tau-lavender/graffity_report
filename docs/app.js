@@ -1,9 +1,3 @@
-// Переключение между экранами
-let tgUsername = "unknown";
-if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
-    tgUsername = window.Telegram.WebApp.initDataUnsafe.user?.username || "unknown";
-}
-
 function showScreen(screenId, clickedButton) {
     if (!screenId || !clickedButton) return;
     document.querySelector('.screen.active').classList.remove('active');
@@ -12,21 +6,22 @@ function showScreen(screenId, clickedButton) {
     clickedButton.classList.add('active');
 }
 
-// Отправка заявки (только адрес и комментарий)
+// Отправка заявки с адресом, комментарием и обратной связью
 function submitApplication() {
     const address = document.querySelector('.adress-input').value;
     const comment = document.querySelector('.comment-textarea').value;
+    const feedback = document.querySelector('.feedback-input').value; // <-- новое поле!
     
-    if (!address || !comment) {
-        alert('Пожалуйста, заполните адрес и комментарий');
+    if (!address || !comment || !feedback) {
+        alert('Пожалуйста, заполните адрес, комментарий и обратную связь');
         return;
     }
     
-    // Отправляем просто JSON
+    // Отправляем JSON с обратной связью
     const data = {
         location: address,
         comment: comment,
-        username: tgUsername
+        feedback: feedback
     };
     
     console.log('Отправляю заявку:', data);
@@ -45,11 +40,10 @@ function submitApplication() {
     .then(result => {
         console.log('Ответ JSON:', result);
         if (result.success) {
-            alert('Заявка успешно отправлена!', data);
-            // Очищаем форму
+            alert('Заявка успешно отправлена!');
             document.querySelector('.adress-input').value = '';
             document.querySelector('.comment-textarea').value = '';
-            // Возвращаемся на экран "Мои заявки"
+            document.querySelector('.feedback-input').value = ''; // очищаем новое поле
             const homeBtn = document.querySelector('.header-buttons .button:first-child');
             if (homeBtn) {
                 showScreen('home-applications', homeBtn);
@@ -65,7 +59,7 @@ function submitApplication() {
     });
 }
 
-// Загрузка списка заявок
+// Загрузка списка заявок (в админке и для пользователя)
 function loadApplications() {
     fetch('https://thefid.pythonanywhere.com/api/applications')
         .then(response => response.json())
@@ -82,7 +76,7 @@ function loadApplications() {
                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                         <p><b>Адрес:</b> ${app.location || app.address || '-'}</p>
                         <p><b>Комментарий:</b> ${app.comment || '-'}</p>
-                        <p><b>Тг:</b> ${app.username || '-'}</p>
+                        <p><b>Контакт для связи:</b> ${app.feedback || '-'}</p>
                         <p><b>Статус:</b> <span style="color: ${app.status === 'approved' ? 'green' : app.status === 'declined' ? 'red' : 'orange'};">${app.status || 'pending'}</span></p>
                     </div>
                 `;
@@ -93,7 +87,7 @@ function loadApplications() {
         .catch(error => console.error('Ошибка загрузки:', error));
 }
 
-// Автораспирение для textarea
+// Автораспрямление для textarea
 document.querySelectorAll('.auto-expand').forEach(function(textarea) {
     textarea.addEventListener('input', function() {
         this.style.height = 'auto';
@@ -103,15 +97,12 @@ document.querySelectorAll('.auto-expand').forEach(function(textarea) {
 
 // Инициализация при загрузке страницы
 window.addEventListener('DOMContentLoaded', function() {
-    // Загружаем список заявок
     loadApplications();
-    
-    // Привязываем обработчик к кнопке отправки
     const submitBtn = document.querySelector('.submit-btn');
     if (submitBtn) {
         submitBtn.addEventListener('click', submitApplication);
     }
 });
 
-// Обновляем список заявок каждые 10 секунд
+// Автообновление списка заявок каждые 10 секунд
 setInterval(loadApplications, 10000);

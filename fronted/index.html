@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GraffityReport</title>
+
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <header>
+            <div class="header-buttons">
+                <button class="button button-text active" onclick="showScreen('home-applications', this)">Мои заявки</button>
+                <button class="button button-text" onclick="showScreen('new-application', this)">Создать новую</button>
+            </div>
+        </header>
+
+        <!--Home applications-->
+        <div id="home-applications" class="screen active">
+            <h2>Мои заявки</h2>
+            <p>Здесь будет список ваших заявок</p>
+        </div>
+
+        <!--New application-->
+        <div id="new-application" class="screen">
+            <!--card add photo-->
+            <div class="card">
+                <div class="title-text">Фотографии граффити</div>
+
+                <div class="photo-grid">
+                    <div class="photo-slot" onclick="triggerPhotoUpload(1)">
+                        <div class="photo-icon"></div>
+                        <div class="mini-text">Добавить</div>
+                    </div>
+                    <div class="photo-slot">
+                        <div class="photo-icon"></div>
+                        <div class="mini-text">Добавить</div>
+                    </div>
+                    <div class="photo-slot">
+                        <div class="photo-icon"></div>
+                        <div class="mini-text">Добавить</div>
+                    </div>
+                </div>
+
+                <div class="mini-text">Вы можете добавить 3 фотографии</div>
+            </div>
+            <!--card add adress-->
+            <div class="card">
+                <div class="title-text">Адрес</div>
+                <input type="text" class="adress-input button-text" placeholder="Введите адрес">
+                <div class="main-text">или</div>
+                <button class="button-add-adress button-text">Использовать текущее местоположение</button>
+            </div>
+            <!--card add comment-->
+            <div class="card">
+                <div class="title-text">Комментарий</div>
+                <textarea class="comment-textarea auto-expand button-text" placeholder="Раскажите подробнее о граффити"></textarea>
+            </div>
+            <!--button add application-->
+            <button class="button-add button-text">Отправить заявку</button>
+        </div>
+
+        <script src="app.js"></script>
+    </body>
+</html>

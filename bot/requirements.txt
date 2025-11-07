@@ -1,0 +1,7 @@
+aiogram
+sqlalchemy
+asyncpg
+psycopg[binary]
+boto3
+python-dotenv
+dadata

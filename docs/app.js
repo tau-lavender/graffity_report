@@ -1,4 +1,3 @@
-
 let tgUsername = "unknown";
 if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
     tgUsername = window.Telegram.WebApp.initDataUnsafe.user?.username || "unknown";

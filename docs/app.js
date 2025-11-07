@@ -82,6 +82,7 @@ function loadApplications() {
                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                         <p><b>Адрес:</b> ${app.location || app.address || '-'}</p>
                         <p><b>Комментарий:</b> ${app.comment || '-'}</p>
+                        <p><b>Тг:</b> ${app.username || '-'}</p>
                         <p><b>Статус:</b> <span style="color: ${app.status === 'approved' ? 'green' : app.status === 'declined' ? 'red' : 'orange'};">${app.status || 'pending'}</span></p>
                     </div>
                 `;

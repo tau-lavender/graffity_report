@@ -61,6 +61,31 @@
     </style>
 </head>
 <body>
+    <script>
+    window.addEventListener('DOMContentLoaded', function() {
+    let infoBlock = document.createElement('div');
+    infoBlock.style.background = '#ffe';
+    infoBlock.style.color = '#222';
+    infoBlock.style.padding = '10px';
+    infoBlock.style.borderRadius = '8px';
+    infoBlock.style.fontSize = '14px';
+    infoBlock.style.margin = '12px';
+    if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.ready();
+        if (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+        infoBlock.innerHTML = "Это Telegram Mini App!<br>ID: "
+            + Telegram.WebApp.initDataUnsafe.user.id
+            + "<br>Имя: " + Telegram.WebApp.initDataUnsafe.user.first_name;
+        } else {
+        infoBlock.innerHTML = "WebApp загружен, но нет user-info.<br>Откройте через Telegram!";
+        }
+    } else {
+        infoBlock.innerHTML = "Открыто вне Telegram WebApp.<br>Telegram объект не найден!";
+    }
+    document.body.prepend(infoBlock);
+    });
+</script>
+
     <!-- Шапка сайта -->
     <header>
         <div class="header-buttons">

@@ -1,4 +1,9 @@
 // Переключение между экранами
+let tgUsername = "unknown";
+if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+    tgUsername = window.Telegram.WebApp.initDataUnsafe.user?.username || "unknown";
+}
+
 function showScreen(screenId, clickedButton) {
     if (!screenId || !clickedButton) return;
     document.querySelector('.screen.active').classList.remove('active');
@@ -20,7 +25,8 @@ function submitApplication() {
     // Отправляем просто JSON
     const data = {
         location: address,
-        comment: comment
+        comment: comment,
+        username: tgUsername
     };
     
     console.log('Отправляю заявку:', data);

@@ -2,85 +2,94 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мои заявки</title>
-
-    <!-- Подключение шрифта Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
-
+    <title>Создать заявку - Graffity Report</title>
     <style>
-        /* Стили для всей страницы */
         body {
-            font-family: "Inter", sans-serif;
+            font-family: Inter, Arial, sans-serif;
             margin: 0;
-            padding: 0;
-            background-color: #F3F3F3; /* Цвет фона */
+            padding: 30px;
+            background: #f0f2f5;
+            color: #222;
         }
-
-        /* Стили для шапки */
-        header {
-            background-color: white;
-            padding: 16px 16px 8px 16px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Легкая тень для шапки */
+        .container {
+            max-width: 400px;
+            margin: auto;
+            background: #fff;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 16px #0002;
         }
-
-        /* Стили для контейнера кнопок */
-        .header-buttons {
-            display: flex;
-            gap: 9px; /* Расстояние между кнопками */
+        h2 {
+            margin-bottom: 18px;
+        }
+        label, input, textarea, button {
             width: 100%;
+            margin-bottom: 12px;
+            font-size: 1em;
         }
-
-        /* Общие стили для кнопок */
-        .button {
-            flex: 1; /* Важный параментр для растягивания кнопок */
-            text-align: center;
-            padding: 8px 0;
-
+        input, textarea {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background: #557cff;
+            color: #fff;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 18px;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
             cursor: pointer;
+            transition: background 0.2s;
         }
-
-        /* Стили для активной кнопки */
-        .button-active {
-            background-color: #4E3B2C;
-            color: white;
+        button:hover {
+            background: #335de4;
         }
-
-        /* Стили для неактивной кнопки */
-        .button-inactive {
-            background-color: #CACACA;
-            color: white;
+        .msg {
+            margin-top: 10px;
+            color: green;
+            text-align: center;
         }
-
     </style>
 </head>
 <body>
-    <!-- Шапка сайта -->
-    <header>
-        <div class="header-buttons">
-            <!-- Активная кнопка -->
-            <button class="button button-inactive" id="ButtonMyApplication">Мои заявки</button>
+    <div class="container">
+        <h2>Создать новую заявку</h2>
+        <form id="apply-form">
+            <label for="location">Локация</label>
+            <input type="text" name="location" id="location" required placeholder="Укажите место">
 
-            <!-- Неактивная кнопка -->
-            <button class="button button-active" id="ButtonCreatApplication">Создать новую</button>
-        </div>
-    </header>
+            <label for="comment">Комментарий</label>
+            <textarea name="comment" id="comment" required placeholder="Ваш комментарий"></textarea>
 
+            <button type="submit">Отправить заявку</button>
+        </form>
+        <div class="msg" id="result-msg"></div>
+    </div>
     <script>
-        const ButtonMyApplication = document.getElementById('ButtonMyApplication');
-        const ButtonCreatApplication = document.getElementById('ButtonCreatApplication');
-
-        ButtonMyApplication.addEventListener('click', function() {
-            window.location.href = 'home-application.html';
-        });
-
+    document.getElementById('apply-form').onsubmit = async function(e) {
+        e.preventDefault();
+        const data = {
+            location: e.target.location.value,
+            comment: e.target.comment.value
+        };
+        try {
+            const res = await fetch('https://thefid.pythonanywhere.com', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success) {
+                document.getElementById('result-msg').textContent = "Заявка успешно отправлена!";
+                e.target.reset();
+            } else {
+                document.getElementById('result-msg').textContent = "Ошибка отправки.";
+            }
+        } catch {
+            document.getElementById('result-msg').textContent = "Ошибка соединения.";
+        }
+    };
     </script>
-
 </body>
 </html>

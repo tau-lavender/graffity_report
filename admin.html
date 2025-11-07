@@ -12,7 +12,7 @@ document.getElementById('admin-login').onsubmit = async function(e) {
 };
 
 async function getApps() {
-    let res = await fetch('https://thefid.pythonanywhere.com');
+    let res = await fetch('https://thefid.pythonanywhere.com/api/applications');
     let apps = await res.json();
     let ui = '';
     apps.forEach((app, idx) => {
@@ -25,7 +25,7 @@ async function getApps() {
 }
 
 async function moderate(idx, status) {
-    await fetch('https://thefid.pythonanywhere.com', {
+    await fetch('https://thefid.pythonanywhere.com/api/applications/moderate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({idx, status, admin_password: admin_pw})

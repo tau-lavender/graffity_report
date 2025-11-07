@@ -23,9 +23,9 @@ function submitApplication() {
         comment: comment,
         feedback: feedback
     };
-    
+
     console.log('Отправляю заявку:', data);
-    
+
     fetch('https://thefid.pythonanywhere.com/api/apply', {
         method: 'POST',
         headers: {
@@ -69,7 +69,7 @@ function loadApplications() {
                 container.innerHTML = '<h2>Мои заявки</h2><p>У вас пока нет заявок</p>';
                 return;
             }
-            
+
             let html = '<h2>Мои заявки</h2><div style="display: flex; flex-direction: column; gap: 10px;">';
             apps.forEach((app, index) => {
                 html += `

@@ -7,62 +7,7 @@ function showScreen(screenId, clickedButton) {
     clickedButton.classList.add('active');
 }
 
-// Хранилище выбранных фотографий
-let selectedPhotos = {};
-
-// Открытие диалога загрузки фото
-function triggerPhotoUpload(slotNumber) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => handlePhotoSelect(e, slotNumber);
-    input.click();
-}
-
-// Обработка выбора фото
-function handlePhotoSelect(event, slotNumber) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        selectedPhotos[slotNumber] = {
-            data: e.target.result,
-            file: file
-        };
-        updatePhotoSlot(slotNumber, e.target.result);
-    };
-    reader.readAsDataURL(file);
-}
-
-// Обновление слота с фото
-function updatePhotoSlot(slotNumber, dataUrl) {
-    const slots = document.querySelectorAll('.photo-slot');
-    if (slots[slotNumber - 1]) {
-        slots[slotNumber - 1].innerHTML = `
-            <img src="${dataUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
-            <div class="delete-btn" onclick="deletePhoto(${slotNumber}, event)" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; z-index: 10;">×</div>
-        `;
-        slots[slotNumber - 1].style.position = 'relative';
-    }
-}
-
-// Удаление фото
-function deletePhoto(slotNumber, event) {
-    event.stopPropagation();
-    delete selectedPhotos[slotNumber];
-    const slots = document.querySelectorAll('.photo-slot');
-    if (slots[slotNumber - 1]) {
-        slots[slotNumber - 1].innerHTML = `
-            <div class="photo-icon"></div>
-            <div class="mini-text">Добавить</div>
-        `;
-        slots[slotNumber - 1].onclick = () => triggerPhotoUpload(slotNumber);
-        slots[slotNumber - 1].style.position = 'relative';
-    }
-}
-
-// Отправка заявки
+// Отправка заявки (только адрес и комментарий)
 function submitApplication() {
     const address = document.querySelector('.adress-input').value;
     const comment = document.querySelector('.comment-textarea').value;
@@ -72,36 +17,32 @@ function submitApplication() {
         return;
     }
     
-    const formData = new FormData();
-    formData.append('location', address);
-    formData.append('comment', comment);
+    // Отправляем просто JSON
+    const data = {
+        location: address,
+        comment: comment
+    };
     
-    // Добавляем фото в FormData
-    Object.keys(selectedPhotos).forEach(slotNumber => {
-        formData.append('photos', selectedPhotos[slotNumber].file);
-    });
+    console.log('Отправляю заявку:', data);
     
-    // Отправляем на backend
     fetch('https://thefid.pythonanywhere.com/api/apply', {
         method: 'POST',
-        body: formData
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+    .then(response => {
+        console.log('Ответ статус:', response.status);
+        return response.json();
+    })
+    .then(result => {
+        console.log('Ответ JSON:', result);
+        if (result.success) {
             alert('Заявка успешно отправлена!');
             // Очищаем форму
             document.querySelector('.adress-input').value = '';
             document.querySelector('.comment-textarea').value = '';
-            selectedPhotos = {};
-            // Сбрасываем слоты с фото
-            document.querySelectorAll('.photo-slot').forEach((slot, index) => {
-                slot.innerHTML = `
-                    <div class="photo-icon"></div>
-                    <div class="mini-text">Добавить</div>
-                `;
-                slot.onclick = () => triggerPhotoUpload(index + 1);
-            });
             // Возвращаемся на экран "Мои заявки"
             const homeBtn = document.querySelector('.header-buttons .button:first-child');
             if (homeBtn) {
@@ -109,12 +50,12 @@ function submitApplication() {
                 loadApplications();
             }
         } else {
-            alert('Ошибка: ' + (data.error || 'Не удалось отправить заявку'));
+            alert('Ошибка: ' + (result.error || 'Не удалось отправить заявку'));
         }
     })
     .catch(error => {
-        console.error('Ошибка:', error);
-        alert('Ошибка соединения с сервером');
+        console.error('Ошибка сети:', error);
+        alert('Ошибка соединения с сервером: ' + error.message);
     });
 }
 
@@ -163,11 +104,6 @@ window.addEventListener('DOMContentLoaded', function() {
     if (submitBtn) {
         submitBtn.addEventListener('click', submitApplication);
     }
-    
-    // Привязываем click для всех слотов фото
-    document.querySelectorAll('.photo-slot').forEach((slot, index) => {
-        slot.onclick = () => triggerPhotoUpload(index + 1);
-    });
 });
 
 // Обновляем список заявок каждые 10 секунд

@@ -67,26 +67,30 @@ function submitApplication() {
 
 // Загрузка списка заявок
 function loadApplications() {
-  fetch('/api/applications')
-    .then(resp => resp.json())
-    .then(applications => {
-      const ul = document.getElementById('applications-list');
-      ul.innerHTML = ""; // Очистить старый список
-
-      applications.forEach((app, idx) => {
-        // username будет app.username
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <b>Заявка №${idx + 1}</b><br>
-          <span><b>Telegram username:</b> @${app.username || "не указан"}</span><br>
-          <span><b>Комментарий:</b> ${app.comment}</span><br>
-          <span><b>Статус:</b> ${app.status}</span>
-        `;
-        ul.appendChild(li);
-      });
-    });
+    fetch('https://thefid.pythonanywhere.com/api/applications')
+        .then(response => response.json())
+        .then(apps => {
+            const container = document.getElementById('home-applications');
+            if (apps.length === 0) {
+                container.innerHTML = '<h2>Мои заявки</h2><p>У вас пока нет заявок</p>';
+                return;
+            }
+            
+            let html = '<h2>Мои заявки</h2><div style="display: flex; flex-direction: column; gap: 10px;">';
+            apps.forEach((app, index) => {
+                html += `
+                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                        <p><b>Адрес:</b> ${app.location || app.address || '-'}</p>
+                        <p><b>Комментарий:</b> ${app.comment || '-'}</p>
+                        <p><b>Статус:</b> <span style="color: ${app.status === 'approved' ? 'green' : app.status === 'declined' ? 'red' : 'orange'};">${app.status || 'pending'}</span></p>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(error => console.error('Ошибка загрузки:', error));
 }
-document.addEventListener('DOMContentLoaded', loadApplications);
 
 // Автораспирение для textarea
 document.querySelectorAll('.auto-expand').forEach(function(textarea) {

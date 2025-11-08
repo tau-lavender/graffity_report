@@ -6,22 +6,20 @@ function showScreen(screenId, clickedButton) {
     clickedButton.classList.add('active');
 }
 
-// Отправка заявки с адресом, комментарием и обратной связью
+// Отправка заявки с адресом, комментарием и данными Telegram
 function submitApplication() {
     const address = document.querySelector('.adress-input').value;
     const comment = document.querySelector('.comment-textarea').value;
-    const feedback = document.querySelector('.feedback-input').value; // <-- новое поле!
     
-    if (!address || !comment || !feedback) {
-        alert('Пожалуйста, заполните адрес, комментарий и обратную связь');
+    if (!address || !comment) {
+        alert('Пожалуйста, заполните адрес и комментарий');
         return;
     }
     
-    // Отправляем JSON с обратной связью и данными пользователя Telegram
+    // Отправляем JSON с данными пользователя Telegram
     const data = {
         location: address,
         comment: comment,
-        feedback: feedback,
         telegram_username: telegramUser ? (telegramUser.username || null) : null,
         telegram_user_id: telegramUser ? (telegramUser.id || null) : null,
         telegram_first_name: telegramUser ? (telegramUser.first_name || null) : null,
@@ -47,7 +45,6 @@ function submitApplication() {
             alert('Заявка успешно отправлена!');
             document.querySelector('.adress-input').value = '';
             document.querySelector('.comment-textarea').value = '';
-            document.querySelector('.feedback-input').value = ''; // очищаем новое поле
             const homeBtn = document.querySelector('.header-buttons .button:first-child');
             if (homeBtn) {
                 showScreen('home-applications', homeBtn);
@@ -80,7 +77,6 @@ function loadApplications() {
                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                         <p><b>Адрес:</b> ${app.location || app.address || '-'}</p>
                         <p><b>Комментарий:</b> ${app.comment || '-'}</p>
-                        <p><b>Контакт для связи:</b> ${app.feedback || '-'}</p>
                         <p><b>Статус:</b> <span style="color: ${app.status === 'approved' ? 'green' : app.status === 'declined' ? 'red' : 'orange'};">${app.status || 'pending'}</span></p>
                     </div>
                 `;

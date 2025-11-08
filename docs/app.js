@@ -8,8 +8,17 @@ function showScreen(screenId, clickedButton) {
 
 // Отправка заявки с адресом, комментарием и данными Telegram
 function submitApplication() {
-    const address = document.querySelector('.adress-input').value;
-    const comment = document.querySelector('.comment-textarea').value;
+    const addressInput = document.querySelector('.adress-input');
+    const commentInput = document.querySelector('.comment-textarea');
+    
+    if (!addressInput || !commentInput) {
+        console.error('Не найдены элементы формы');
+        alert('Ошибка: элементы формы не найдены');
+        return;
+    }
+    
+    const address = addressInput.value;
+    const comment = commentInput.value;
     
     if (!address || !comment) {
         alert('Пожалуйста, заполните адрес и комментарий');
@@ -43,8 +52,10 @@ function submitApplication() {
         console.log('Ответ JSON:', result);
         if (result.success) {
             alert('Заявка успешно отправлена!');
-            document.querySelector('.adress-input').value = '';
-            document.querySelector('.comment-textarea').value = '';
+            const addressInput = document.querySelector('.adress-input');
+            const commentInput = document.querySelector('.comment-textarea');
+            if (addressInput) addressInput.value = '';
+            if (commentInput) commentInput.value = '';
             const homeBtn = document.querySelector('.header-buttons .button:first-child');
             if (homeBtn) {
                 showScreen('home-applications', homeBtn);

@@ -17,11 +17,15 @@ function submitApplication() {
         return;
     }
     
-    // Отправляем JSON с обратной связью
+    // Отправляем JSON с обратной связью и данными пользователя Telegram
     const data = {
         location: address,
         comment: comment,
-        feedback: feedback
+        feedback: feedback,
+        telegram_username: telegramUser ? (telegramUser.username || null) : null,
+        telegram_user_id: telegramUser ? (telegramUser.id || null) : null,
+        telegram_first_name: telegramUser ? (telegramUser.first_name || null) : null,
+        telegram_last_name: telegramUser ? (telegramUser.last_name || null) : null
     };
 
     console.log('Отправляю заявку:', data);
@@ -95,8 +99,51 @@ document.querySelectorAll('.auto-expand').forEach(function(textarea) {
     });
 });
 
+// Глобальная переменная для хранения данных пользователя Telegram
+let telegramUser = null;
+
+// Инициализация Telegram Web App
+function initTelegramApp() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        
+        // Получаем данные пользователя
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            telegramUser = tg.initDataUnsafe.user;
+            console.log('Telegram User Data:', telegramUser);
+            console.log('Username:', telegramUser.username || 'Не указан');
+            console.log('First Name:', telegramUser.first_name || '');
+            console.log('Last Name:', telegramUser.last_name || '');
+            console.log('User ID:', telegramUser.id || '');
+            
+            // Можно отобразить приветствие пользователю
+            displayUserGreeting();
+        } else {
+            console.warn('Telegram user data not available');
+        }
+        
+        // Расширяем приложение на весь экран
+        tg.expand();
+    } else {
+        console.warn('Not running in Telegram Web App environment');
+    }
+}
+
+// Отображение приветствия пользователю
+function displayUserGreeting() {
+    if (telegramUser) {
+        const username = telegramUser.username || telegramUser.first_name || 'Пользователь';
+        console.log(`Добро пожаловать, @${username}!`);
+        // Можно добавить визуальное приветствие в интерфейсе, если нужно
+    }
+}
+
 // Инициализация при загрузке страницы
 window.addEventListener('DOMContentLoaded', function() {
+    // Инициализируем Telegram Mini App
+    initTelegramApp();
+    
     loadApplications();
     const submitBtn = document.querySelector('.submit-btn');
     if (submitBtn) {

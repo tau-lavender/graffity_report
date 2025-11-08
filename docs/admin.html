@@ -18,7 +18,8 @@ async function getApps() {
     apps.forEach((app, idx) => {
         ui += `<li>
             #${idx} <b>${app.location}</b> (${app.comment}) [${app.status}]<br>
-            <b>Контакт для связи:</b> ${app.feedback || '<i>не указан</i>'}
+            <b>Контакт для связи:</b> ${app.feedback || '<i>не указан</i>'}<br>
+            <b>Telegram username:</b> ${app.telegram_username ? '@' + app.telegram_username : '<i>не указан</i>'}
             <br>
             <button onclick="moderate(${idx}, 'approved')">Одобрить</button>
             <button onclick="moderate(${idx}, 'declined')">Отклонить</button>

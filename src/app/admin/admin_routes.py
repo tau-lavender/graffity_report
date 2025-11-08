@@ -14,6 +14,16 @@ def apply():
 
 @admin_bp.route('/api/applications', methods=['GET'])
 def get_applications():
+    # Получаем telegram_user_id из параметров запроса
+    user_id = request.args.get('telegram_user_id', None)
+    
+    # Если user_id указан, фильтруем заявки только для этого пользователя
+    if user_id:
+        filtered_apps = [app for app in singleton.applications 
+                        if app.get('telegram_user_id') == int(user_id)]
+        return jsonify(filtered_apps)
+    
+    # Если user_id не указан, возвращаем все заявки
     return jsonify(singleton.applications)
 
 @admin_bp.route('/api/applications/moderate', methods=['POST'])

@@ -73,7 +73,16 @@ function submitApplication() {
 
 // Загрузка списка заявок (в админке и для пользователя)
 function loadApplications() {
-    fetch('https://thefid.pythonanywhere.com/api/applications')
+    // Формируем URL с параметром telegram_user_id, если пользователь определен
+    let url = 'https://thefid.pythonanywhere.com/api/applications';
+    if (telegramUser && telegramUser.id) {
+        url += `?telegram_user_id=${telegramUser.id}`;
+        console.log('Загружаю заявки для пользователя:', telegramUser.id);
+    } else {
+        console.log('Загружаю все заявки (пользователь не определен)');
+    }
+    
+    fetch(url)
         .then(response => response.json())
         .then(apps => {
             const container = document.getElementById('home-applications');

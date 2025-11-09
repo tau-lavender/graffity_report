@@ -1,38 +1,63 @@
-<form id="admin-login">
-    <input type="password" id="admin_pw" placeholder="Пароль" required>
-    <button type="submit">Вход</button>
-</form>
-<ul id="app-list"></ul>
-<script>
-let admin_pw = '';
-document.getElementById('admin-login').onsubmit = async function(e) {
-    e.preventDefault();
-    admin_pw = document.getElementById('admin_pw').value;
-    getApps();
-};
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GraffityReport-Admin</title>
 
-async function getApps() {
-    let res = await fetch('https://thefid.pythonanywhere.com/api/applications');
-    let apps = await res.json();
-    let ui = '';
-    apps.forEach((app, idx) => {
-        ui += `<li>
-            #${idx} <b>${app.location}</b> (${app.comment}) [${app.status}]<br>
-            <b>Telegram username:</b> ${app.telegram_username ? '@' + app.telegram_username : '<i>не указан</i>'}
-            <br>
-            <button onclick="moderate(${idx}, 'approved')">Одобрить</button>
-            <button onclick="moderate(${idx}, 'declined')">Отклонить</button>
-        </li>`;
-    });
-    document.getElementById('app-list').innerHTML = ui;
-}
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
 
-async function moderate(idx, status) {
-    await fetch('https://thefid.pythonanywhere.com/api/applications/moderate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({idx, status, admin_password: admin_pw})
-    });
-    getApps();
-}
-</script>
+        <link rel="stylesheet" href="admin.css">
+    </head>
+    <body>
+        <div class="login-overlay">
+            <div class="card-password">
+                <form id="admin-login" class="form-password">
+                    <input type="password" id="admin_pw" class="password-input" placeholder="Введите пароль" required>
+                    <button type="submit" class="button-enter">Вход</button>
+                </form>
+            </div>
+        </div>
+
+        <div><ul id="app-list"></ul></div>
+
+        <script>
+        let admin_pw = '';
+        document.getElementById('admin-login').onsubmit = async function(e) {
+            e.preventDefault();
+            admin_pw = document.getElementById('admin_pw').value;
+
+            document.querySelector('.login-overlay').style.display = 'none';
+
+            getApps();
+        };
+
+        async function getApps() {
+            let res = await fetch('https://thefid.pythonanywhere.com/api/applications');
+            let apps = await res.json();
+            let ui = '';
+            apps.forEach((app, idx) => {
+                ui += `<li>
+                    #${idx} <b>${app.location}</b> (${app.comment}) [${app.status}]<br>
+                    <b>Telegram username:</b> ${app.telegram_username ? '@' + app.telegram_username : '<i>не указан</i>'}
+                    <br>
+                    <button onclick="moderate(${idx}, 'approved')">Одобрить</button>
+                    <button onclick="moderate(${idx}, 'declined')">Отклонить</button>
+                </li>`;
+            });
+            document.getElementById('app-list').innerHTML = ui;
+        }
+
+        async function moderate(idx, status) {
+            await fetch('https://thefid.pythonanywhere.com/api/applications/moderate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({idx, status, admin_password: admin_pw})
+            });
+            getApps();
+        }
+        </script>
+    </body>
+</html>

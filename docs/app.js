@@ -71,7 +71,29 @@ function submitApplication() {
     });
 }
 
-// Загрузка списка заявок (в админке и для пользователя)
+//Создание карточек заявок
+function createAppCard(app) {
+    const STATUS_TEXTS = {
+        'approved': 'Одобрено',
+        'declined': 'Отклонено', 
+        'pending': 'Ожидает'
+    };
+    
+    const status = STATUS_TEXTS[app.status] || 'Ожидает';
+
+    return `
+        <div class="card">
+            <div class="adress-slot">
+                <div class="geo-icon"></div>
+                <div class="title-text">${app.location || app.address || '-'}</div>
+            </div>
+            <div class="main-text">${app.comment || '-'}</div>
+            <span class="mini-text status ${app.status || 'pending'}">${status}</span>
+        </div>
+    `;
+}
+
+// Загрузка списка заявок (для пользователя)
 function loadApplications() {
     // Формируем URL с параметром telegram_user_id, если пользователь определен
     let url = 'https://thefid.pythonanywhere.com/api/applications';
@@ -87,21 +109,15 @@ function loadApplications() {
         .then(apps => {
             const container = document.getElementById('home-applications');
             if (apps.length === 0) {
-                container.innerHTML = '<h2>Мои заявки</h2><p>У вас пока нет заявок</p>';
+                container.innerHTML = '<p>У вас пока нет заявок</p>';
                 return;
             }
 
-            let html = '<h2>Мои заявки</h2><div style="display: flex; flex-direction: column; gap: 10px;">';
-            apps.forEach((app, index) => {
-                html += `
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-                        <p><b>Адрес:</b> ${app.location || app.address || '-'}</p>
-                        <p><b>Комментарий:</b> ${app.comment || '-'}</p>
-                        <p><b>Статус:</b> <span style="color: ${app.status === 'approved' ? 'green' : app.status === 'declined' ? 'red' : 'orange'};">${app.status || 'pending'}</span></p>
-                    </div>
-                `;
+            let html = '';
+            apps.forEach(app => {
+                html += createAppCard(app);
             });
-            html += '</div>';
+
             container.innerHTML = html;
         })
         .catch(error => console.error('Ошибка загрузки:', error));
@@ -169,3 +185,4 @@ window.addEventListener('DOMContentLoaded', function() {
 
 // Автообновление списка заявок каждые 10 секунд
 setInterval(loadApplications, 10000);
+

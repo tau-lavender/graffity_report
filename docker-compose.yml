@@ -1,0 +1,83 @@
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: graffiti_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: securepass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - graffiti-net
+
+  minio:
+    image: minio/minio
+    container_name: graffiti_minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    networks:
+      - graffiti-net
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_NAME=graffiti_db
+      - DB_USER=admin
+      - DB_PASSWORD=securepass123
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=graffiti_bot
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=graffiti-reports
+      - DADATA_TOKEN=${DADATA_TOKEN}
+      - DADATA_SECRET=${DADATA_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    depends_on:
+      - db
+      - minio
+    networks:
+      - graffiti-net
+
+  bot:
+    build: ./bot
+    env_file:
+      - .env
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DB_HOST=db
+      - DB_NAME=graffiti_db
+      - DB_USER=admin
+      - DB_PASSWORD=securepass123
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=graffiti_bot
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=graffiti-reports
+      - DADATA_TOKEN=${DADATA_TOKEN}
+      - DADATA_SECRET=${DADATA_SECRET}
+    depends_on:
+      - backend
+    networks:
+      - graffiti-net
+
+volumes:
+  pgdata:
+  minio_data:
+
+networks:
+  graffiti-net:
+    driver: bridge

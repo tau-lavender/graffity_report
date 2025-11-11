@@ -1,0 +1,11 @@
+meta:
+  environment: python
+  toolchain:
+    name: python
+    version: 3.11
+
+build:
+  dockerfile: docker-compose.yml
+
+run:
+  containerPort: 5000

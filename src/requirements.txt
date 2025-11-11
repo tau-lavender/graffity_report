@@ -1,9 +1,11 @@
 flask
+flask-cors
 flask-sqlalchemy
 geoalchemy2
 psycopg2-binary
 boto3
 python-dotenv
+python-decouple
 flask-jwt-extended
 gunicorn
 dadata

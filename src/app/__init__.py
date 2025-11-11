@@ -11,6 +11,20 @@ def create_app():
     for blueprint in blueprints:
         app.register_blueprint(blueprint)
 
+    # Root endpoint for quick check
+    @app.route('/', methods=['GET'])
+    def root():
+        return jsonify({
+            'status': 'running',
+            'service': 'GraffitiReport API',
+            'endpoints': {
+                'health': '/health',
+                'applications': '/api/applications',
+                'apply': '/api/apply',
+                'moderate': '/api/applications/moderate'
+            }
+        }), 200
+
     # Simple health endpoint (useful for platform checks)
     @app.route('/health', methods=['GET'])
     def health():

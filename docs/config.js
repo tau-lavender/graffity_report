@@ -1,0 +1,11 @@
+// Конфигурация API endpoint
+// Для локальной разработки используйте 'local'
+// Для production (Railway) используйте 'production'
+const ENV = 'production';
+
+const API_ENDPOINTS = {
+    local: 'http://localhost:5000',
+    production: 'https://graffityreport-production.up.railway.app'
+};
+
+const API_URL = API_ENDPOINTS[ENV];

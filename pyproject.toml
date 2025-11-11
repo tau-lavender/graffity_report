@@ -9,4 +9,5 @@ dependencies = [
     "flask_cors>=6.0.1",
     "python-decouple>=3.8.0",
     "pre-commit",
+    "dadata>=21.12.0",
 ]

@@ -1,13 +1,19 @@
+
 FROM python:3.11-slim
 
+# Рабочая директория внутри контейнера
 WORKDIR /app
 
-
-
-COPY requirements.txt .
+# Копируем requirements из папки src, т.к. Railway берет корень репо как build context
+COPY src/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Копируем только исходники backend
+COPY src/ ./src
 
-COPY . .
+# Указываем порт через переменную $PORT (Railway задаёт его автоматически)
+ENV PYTHONUNBUFFERED=1
+EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# Запуск через gunicorn аналогично Procfile
+CMD ["gunicorn", "--bind", "0.0.0.0:${PORT}", "--workers", "2", "--timeout", "120", "--chdir", "src", "main:app"]

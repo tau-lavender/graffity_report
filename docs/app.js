@@ -10,21 +10,21 @@ function showScreen(screenId, clickedButton) {
 function submitApplication() {
     const addressInput = document.querySelector('.adress-input');
     const commentInput = document.querySelector('.comment-textarea');
-    
+
     if (!addressInput || !commentInput) {
         console.error('Не найдены элементы формы');
         alert('Ошибка: элементы формы не найдены');
         return;
     }
-    
+
     const address = addressInput.value;
     const comment = commentInput.value;
-    
+
     if (!address || !comment) {
         alert('Пожалуйста, заполните адрес и комментарий');
         return;
     }
-    
+
     // Отправляем JSON с данными пользователя Telegram
     const data = {
         location: address,
@@ -37,7 +37,7 @@ function submitApplication() {
 
     console.log('Отправляю заявку:', data);
 
-    fetch('https://thefid.pythonanywhere.com/api/apply', {
+    fetch(`${API_URL}/api/apply`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -75,10 +75,10 @@ function submitApplication() {
 function createAppCard(app) {
     const STATUS_TEXTS = {
         'approved': 'Одобрено',
-        'declined': 'Отклонено', 
+        'declined': 'Отклонено',
         'pending': 'Ожидает'
     };
-    
+
     const status = STATUS_TEXTS[app.status] || 'Ожидает';
 
     return `
@@ -96,14 +96,14 @@ function createAppCard(app) {
 // Загрузка списка заявок (для пользователя)
 function loadApplications() {
     // Формируем URL с параметром telegram_user_id, если пользователь определен
-    let url = 'https://thefid.pythonanywhere.com/api/applications';
+    let url = `${API_URL}/api/applications`;
     if (telegramUser && telegramUser.id) {
         url += `?telegram_user_id=${telegramUser.id}`;
         console.log('Загружаю заявки для пользователя:', telegramUser.id);
     } else {
         console.log('Загружаю все заявки (пользователь не определен)');
     }
-    
+
     fetch(url)
         .then(response => response.json())
         .then(apps => {
@@ -139,7 +139,7 @@ function initTelegramApp() {
     if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
-        
+
         // Получаем данные пользователя
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             telegramUser = tg.initDataUnsafe.user;
@@ -148,13 +148,13 @@ function initTelegramApp() {
             console.log('First Name:', telegramUser.first_name || '');
             console.log('Last Name:', telegramUser.last_name || '');
             console.log('User ID:', telegramUser.id || '');
-            
+
             // Можно отобразить приветствие пользователю
             displayUserGreeting();
         } else {
             console.warn('Telegram user data not available');
         }
-        
+
         // Расширяем приложение на весь экран
         tg.expand();
     } else {
@@ -175,7 +175,7 @@ function displayUserGreeting() {
 window.addEventListener('DOMContentLoaded', function() {
     // Инициализируем Telegram Mini App
     initTelegramApp();
-    
+
     loadApplications();
     const submitBtn = document.querySelector('.submit-btn');
     if (submitBtn) {
@@ -185,4 +185,3 @@ window.addEventListener('DOMContentLoaded', function() {
 
 // Автообновление списка заявок каждые 10 секунд
 setInterval(loadApplications, 10000);
-

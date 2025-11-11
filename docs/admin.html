@@ -35,7 +35,7 @@
         };
 
         async function getApps() {
-            let res = await fetch('https://thefid.pythonanywhere.com/api/applications');
+            let res = await fetch(`${API_URL}/api/applications`);
             let apps = await res.json();
             let ui = '';
             apps.forEach((app, idx) => {
@@ -51,7 +51,7 @@
         }
 
         async function moderate(idx, status) {
-            await fetch('https://thefid.pythonanywhere.com/api/applications/moderate', {
+            await fetch(`${API_URL}/api/applications/moderate`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({idx, status, admin_password: admin_pw})

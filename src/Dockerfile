@@ -15,5 +15,5 @@ COPY src/ ./src
 ENV PYTHONUNBUFFERED=1
 EXPOSE 5000
 
-# Запуск через gunicorn аналогично Procfile
-CMD ["gunicorn", "--bind", "0.0.0.0:${PORT}", "--workers", "2", "--timeout", "120", "--chdir", "src", "main:app"]
+# Запуск через gunicorn без смены директории, указываем модуль как src.main:app
+CMD ["gunicorn", "--bind", "0.0.0.0:${PORT}", "--workers", "2", "--timeout", "120", "src.main:app"]

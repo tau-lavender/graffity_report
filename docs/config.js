@@ -4,7 +4,7 @@
 const ENV = 'production';
 
 const API_ENDPOINTS = {
-    local: 'http://localhost:5000',
+    local: 'http://localhost:8080',
     production: 'https://graffityreport-production.up.railway.app'
 };
 

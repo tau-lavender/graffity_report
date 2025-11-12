@@ -5,7 +5,20 @@ from src.app.admin import blueprints
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
+
+    # Configure CORS to allow GitHub Pages
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": [
+                "https://tau-lavender.github.io",
+                "http://localhost:8080",
+                "http://127.0.0.1:8080"
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
 
     # Register all blueprints
     for blueprint in blueprints:

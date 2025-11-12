@@ -1,5 +1,13 @@
 {
-  "providers": ["python"],
-  "buildCommand": "pip install -r src/requirements.txt",
-  "startCommand": "cd src && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 main:app"
+  "phases": {
+    "setup": {
+      "nixPkgs": ["python311"]
+    },
+    "install": {
+      "cmds": ["pip install -r src/requirements.txt"]
+    }
+  },
+  "start": {
+    "cmd": "cd src && python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 main:app"
+  }
 }

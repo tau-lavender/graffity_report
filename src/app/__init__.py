@@ -1,4 +1,4 @@
-from flask import Flask, jsonify  # type: ignore
+from flask import Flask, jsonify, request  # type: ignore
 from flask_cors import CORS  # type: ignore
 from src.app.admin import blueprints
 
@@ -39,5 +39,21 @@ def create_app():
     @app.route('/health', methods=['GET'])
     def health():
         return jsonify(status='ok'), 200
+
+    # Basic request logging to help diagnose 502/timeouts in production
+    @app.before_request
+    def _log_request():
+        try:
+            app.logger.info(f"REQ {request.method} {request.path} headers={dict(request.headers)}")
+        except Exception:
+            pass
+
+    @app.after_request
+    def _log_response(response):
+        try:
+            app.logger.info(f"RES {request.method} {request.path} status={response.status_code}")
+        except Exception:
+            pass
+        return response
 
     return app

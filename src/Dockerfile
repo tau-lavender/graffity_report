@@ -11,12 +11,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем только исходники backend
 COPY src/ ./src
 
-# Указываем порт через переменную $PORT (Railway задаёт его автоматически)
+# Указываем порт 8080 (Railway использует динамический $PORT, но дефолт 8080)
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
-ENV PORT=5000
-EXPOSE 5000
+ENV PORT=8080
+EXPOSE 8080
 
-# Запуск через gunicorn без смены директории, указываем модуль как src.main:app
-# Используем shell-форму CMD для раскрытия переменной $PORT
+# Запуск через gunicorn
 CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info --access-logfile - --error-logfile - src.main:app

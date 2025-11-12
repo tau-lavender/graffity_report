@@ -1,10 +1,14 @@
 {
+  "providers": ["python"],
   "phases": {
     "setup": {
       "nixPkgs": ["python311"]
     },
     "install": {
-      "cmds": ["pip install -r src/requirements.txt"]
+      "cmds": [
+        "pip install --upgrade pip",
+        "pip install -r src/requirements.txt"
+      ]
     }
   },
   "start": {

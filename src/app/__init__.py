@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request  # type: ignore
+from sqlalchemy import text  # type: ignore
 from flask_cors import CORS  # type: ignore
 from src.app.admin import blueprints
 
@@ -16,6 +17,13 @@ def create_app():
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],
          supports_credentials=True)
+
+    # Initialize database (if DATABASE_URL is set)
+    try:
+        from src.util import setup_database
+        setup_database(app)
+    except Exception as e:
+        app.logger.warning(f"Database setup skipped: {e}")
 
     # Register all blueprints
     for blueprint in blueprints:
@@ -39,6 +47,25 @@ def create_app():
     @app.route('/health', methods=['GET'])
     def health():
         return jsonify(status='ok'), 200
+
+    # Database health endpoint (verifies connection and PostGIS availability)
+    @app.route('/api/db/health', methods=['GET'])
+    def db_health():
+        engine = app.config.get("DB_ENGINE")
+        if not engine:
+            return jsonify(ok=False, error="DATABASE_URL is not set"), 200
+        try:
+            with engine.connect() as conn:
+                pg_version = conn.execute(text("SELECT version()"))
+                pgv = pg_version.scalar_one()
+                try:
+                    postgis_version = conn.execute(text("SELECT PostGIS_Version()"))
+                    pgv_gis = postgis_version.scalar_one()
+                except Exception:
+                    pgv_gis = None
+            return jsonify(ok=True, postgres=str(pgv), postgis=str(pgv_gis) if pgv_gis else None), 200
+        except Exception as e:
+            return jsonify(ok=False, error=str(e)), 200
 
     # Basic request logging to help diagnose 502/timeouts in production
     @app.before_request

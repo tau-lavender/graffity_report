@@ -7,7 +7,7 @@ function showScreen(screenId, clickedButton) {
 }
 
 // Отправка заявки с адресом, комментарием и данными Telegram
-function submitApplication() {
+async function submitApplication() {
     const addressInput = document.querySelector('.adress-input');
     const commentInput = document.querySelector('.comment-textarea');
 
@@ -52,43 +52,49 @@ function submitApplication() {
 
     console.log('Отправляю заявку:', data);
 
-    fetch(`${API_URL}/api/apply`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        console.log('Ответ статус:', response.status);
-        return response.json();
-    })
-    .then(result => {
-        console.log('Ответ JSON:', result);
-        if (result.success) {
-            const reportId = result.report_id;
-            const hasPhotos = selectedPhotos.some(photo => photo !== null);
+    try {
+        const response = await fetch(`${API_URL}/api/apply`, {
+            method: 'POST',
+            mode: 'cors',
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
 
-            if (hasPhotos && reportId) {
-                uploadPhotos(reportId).then(uploadedKeys => {
-                    alert(`Заявка отправлена! Загружено фото: ${uploadedKeys.length}`);
-                    resetForm();
-                }).catch(() => {
-                    alert('Заявка отправлена, но фото не загружены');
-                    resetForm();
-                });
-            } else {
-                alert('Заявка успешно отправлена!');
-                resetForm();
+        const result = await response.json();
+        console.log('Ответ JSON:', result);
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Не удалось отправить заявку');
+        }
+
+        const reportId = result.report_id;
+        const hasPhotos = selectedPhotos.some(photo => photo !== null);
+
+        if (hasPhotos) {
+            if (!reportId) {
+                alert('Сервер не вернул номер заявки. Попробуйте ещё раз.');
+                return;
+            }
+
+            try {
+                const uploadedKeys = await uploadPhotos(reportId);
+                alert(`Заявка отправлена! Загружено фото: ${uploadedKeys.length}`);
+            } catch (uploadError) {
+                console.error('Ошибка загрузки фото:', uploadError);
+                alert('Заявка отправлена, но фото не загружены');
             }
         } else {
-            alert('Ошибка: ' + (result.error || 'Не удалось отправить заявку'));
+            alert('Заявка успешно отправлена!');
         }
-    })
-    .catch(error => {
-        console.error('Ошибка сети:', error);
-        alert('Ошибка соединения с сервером: ' + error.message);
-    });
+
+        resetForm();
+    } catch (error) {
+        console.error('Ошибка при отправке заявки:', error);
+        alert(error.message || 'Ошибка соединения с сервером');
+    }
 }
 
 // Сброс формы после отправки
@@ -261,6 +267,8 @@ async function uploadPhotos(reportId) {
 
             const response = await fetch(`${API_URL}/api/upload/photo`, {
                 method: 'POST',
+                mode: 'cors',
+                cache: 'no-store',
                 body: formData
             });
 
@@ -269,7 +277,7 @@ async function uploadPhotos(reportId) {
             }
 
             const result = await response.json();
-            
+
             if (result.success && result.s3_key) {
                 uploadedKeys.push(result.s3_key);
             }

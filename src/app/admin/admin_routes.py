@@ -44,9 +44,24 @@ def apply():
 
     # Fallback to Singleton if no DATABASE_URL
     if not os.environ.get('DATABASE_URL'):
-        data['status'] = 'pending'
-        singleton.applications.append(data)
-        return jsonify(success=True, message='Application added successfully')
+        # Создаём совместимую с БД структуру и возвращаем report_id
+        report_id = singleton.next_report_id()
+        item = {
+            'id': report_id,
+            'report_id': report_id,
+            'location': data.get('raw_address') or data.get('normalized_address') or '',
+            'comment': data.get('comment') or data.get('description') or '',
+            'status': 'pending',
+            'telegram_username': data.get('telegram_username'),
+            'telegram_user_id': data.get('telegram_user_id'),
+            'telegram_first_name': data.get('telegram_first_name'),
+            'telegram_last_name': data.get('telegram_last_name'),
+            'created_at': None
+        }
+        singleton.applications.append(item)
+        # Инициализируем список фото для этой заявки
+        singleton.photos[report_id] = []
+        return jsonify(success=True, message='Application added successfully', report_id=report_id)
 
     try:
         with get_db_session() as session:
@@ -113,11 +128,17 @@ def get_applications():
 
     # Fallback to Singleton if no DATABASE_URL
     if not os.environ.get('DATABASE_URL'):
-        if user_id:
-            filtered_apps = [app for app in singleton.applications
-                            if app.get('telegram_user_id') == int(user_id)]
-            return jsonify(filtered_apps)
-        return jsonify(singleton.applications)
+        # Добавляем photos для каждой заявки из singleton.photos
+        apps = []
+        for app in singleton.applications:
+            if user_id and app.get('telegram_user_id') != int(user_id):
+                continue
+            rid = app.get('report_id') or app.get('id')
+            photos = singleton.photos.get(rid, [])
+            app_copy = app.copy()
+            app_copy['photos'] = [{'id': p.get('id'), 'url': p.get('url') or p.get('s3_key')} for p in photos]
+            apps.append(app_copy)
+        return jsonify(apps)
 
     try:
         with get_db_session() as session:
@@ -244,6 +265,16 @@ def upload_photo():
                 )
                 session.add(photo)
                 # Context manager делает commit
+        else:
+            # Сохраняем фото в singleton для режима без БД
+            try:
+                pid = None
+                # Генерируем id фото как длину списка +1
+                photos_list = singleton.photos.setdefault(int(report_id), [])
+                pid = len(photos_list) + 1
+                photos_list.append({'id': pid, 's3_key': uploaded_key, 'url': uploaded_key})
+            except Exception as e:
+                current_app.logger.error(f"Failed to save photo in singleton: {e}")
 
         return jsonify(
             success=True,
@@ -256,6 +287,43 @@ def upload_photo():
         import traceback
         traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
+
+
+@admin_bp.route('/api/photos/all', methods=['GET'])
+def get_all_photos():
+    """Get all photos from database with report info."""
+    from src.models import ReportPhoto
+
+    if not os.environ.get('DATABASE_URL'):
+        # Singleton mode
+        result = []
+        for report_id, photos in singleton.photos.items():
+            for photo in photos:
+                result.append({
+                    'photo_id': photo.get('id'),
+                    'report_id': report_id,
+                    's3_key': photo.get('s3_key'),
+                    'url': photo.get('url')
+                })
+        return jsonify(total=len(result), photos=result)
+
+    try:
+        with get_db_session() as session:
+            photos = session.query(ReportPhoto).all()
+
+            result = []
+            for photo in photos:
+                result.append({
+                    'photo_id': photo.photo_id,
+                    'report_id': photo.report_id,
+                    's3_key': photo.s3_key,
+                    'uploaded_at': photo.uploaded_at.isoformat() if photo.uploaded_at else None
+                })
+
+            return jsonify(total=len(result), photos=result)
+    except Exception as e:
+        current_app.logger.error(f"Error getting all photos: {e}")
+        return jsonify(error=str(e)), 500
 
 
 @admin_bp.route('/api/photo/<int:photo_id>', methods=['GET'])

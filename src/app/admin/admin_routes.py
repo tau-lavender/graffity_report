@@ -113,6 +113,7 @@ def apply():
                 report.location = from_shape(point, srid=4326)
 
             session.add(report)
+            session.flush()  # Ensure report_id is assigned before returning
             # Context manager автоматически делает commit
 
             return jsonify(success=True, message='Application added successfully', report_id=report.report_id)

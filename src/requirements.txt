@@ -9,3 +9,5 @@ python-decouple
 flask-jwt-extended
 gunicorn
 dadata
+shapely
+sqlalchemy

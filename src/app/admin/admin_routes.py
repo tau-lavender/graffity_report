@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app # type: ignore
 from src.models import User, GraffitiReport
 from src.util import get_db_session
 from src.singleton import SingletonClass
+from src.dadata_helper import normalize_address
 from decouple import config # type: ignore
 from geoalchemy2.shape import from_shape # type: ignore
 from shapely.geometry import Point # type: ignore
@@ -65,17 +66,33 @@ def apply():
                 session.add(user)
                 session.flush()  # Получаем user_id
 
+            # Нормализуем адрес через DaData (если адрес не содержит уже ФИАС)
+            raw_address = data.get('raw_address')
+            fias_id = data.get('fias_id')  # Может придти с фронта
+
+            if not fias_id and raw_address:
+                # Нормализуем через DaData API
+                normalized_data = normalize_address(raw_address)
+                normalized_addr = normalized_data.get('normalized_address')
+                fias_id = normalized_data.get('fias_id')
+                lat = normalized_data.get('latitude')
+                lon = normalized_data.get('longitude')
+            else:
+                # Используем данные с фронта
+                normalized_addr = raw_address
+                lat = data.get('latitude')
+                lon = data.get('longitude')
+
             # Создаём заявку
             report = GraffitiReport(
                 user_id=user.user_id,
-                normalized_address=data.get('location'),
-                description=data.get('comment'),
+                normalized_address=normalized_addr or raw_address or '',
+                fias_id=fias_id,
+                description=data.get('comment') or data.get('description') or '',
                 status='pending'
             )
 
-            # Если есть координаты, добавляем location
-            lat = data.get('latitude')
-            lon = data.get('longitude')
+            # Если есть координаты, добавляем location (PostGIS POINT)
             if lat is not None and lon is not None:
                 point = Point(float(lon), float(lat))
                 report.location = from_shape(point, srid=4326)
@@ -86,6 +103,8 @@ def apply():
             return jsonify(success=True, message='Application added successfully', report_id=report.report_id)
     except Exception as e:
         current_app.logger.error(f"Error in /api/apply: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
 
 @admin_bp.route('/api/applications', methods=['GET'])
@@ -114,8 +133,8 @@ def get_applications():
             for report in reports:
                 result.append({
                     'id': report.report_id,
-                    'location': report.normalized_address,
-                    'comment': report.description,
+                    'location': report.normalized_address or '',
+                    'comment': report.description or '',
                     'status': report.status,
                     'telegram_username': report.user.username,
                     'telegram_user_id': report.user.user_id,

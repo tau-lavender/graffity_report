@@ -86,10 +86,9 @@ def apply():
             # Создаём заявку
             report = GraffitiReport(
                 user_id=user.user_id,
-                raw_address=raw_address or '',
                 normalized_address=normalized_addr or raw_address or '',
                 fias_id=fias_id,
-                description=data.get('description') or '',
+                description=data.get('comment') or data.get('description') or '',
                 status='pending'
             )
 
@@ -134,8 +133,8 @@ def get_applications():
             for report in reports:
                 result.append({
                     'id': report.report_id,
-                    'location': report.normalized_address or report.raw_address,
-                    'comment': report.description,
+                    'location': report.normalized_address or '',
+                    'comment': report.description or '',
                     'status': report.status,
                     'telegram_username': report.user.username,
                     'telegram_user_id': report.user.user_id,

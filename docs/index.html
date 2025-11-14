@@ -50,7 +50,10 @@
             <!--card add adress-->
             <div class="card">
                 <div class="title-text">Адрес</div>
-                <input type="text" class="adress-input button-text" placeholder="Введите адрес">
+                <div class="address-autocomplete-wrapper">
+                    <input type="text" class="adress-input button-text" placeholder="Введите адрес" autocomplete="off" data-fias="">
+                    <div class="address-suggestions" style="display: none;"></div>
+                </div>
                 <div class="main-text">или</div>
                 <button class="button-add-adress button-text">Использовать текущее местоположение</button>
             </div>
@@ -66,6 +69,7 @@
         <!-- Telegram Web App SDK -->
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <script src="config.js"></script>
+        <script src="dadata.js"></script>
         <script src="app.js"></script>
     </body>
 </html>

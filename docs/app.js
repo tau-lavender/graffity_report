@@ -25,14 +25,29 @@ function submitApplication() {
         return;
     }
 
-    // Отправляем JSON с данными пользователя Telegram
+    // Получаем ФИАС данные из data-атрибута
+    let fiasData = null;
+    try {
+        const fiasStr = addressInput.getAttribute('data-fias');
+        if (fiasStr) {
+            fiasData = JSON.parse(fiasStr);
+        }
+    } catch (e) {
+        console.warn('Failed to parse FIAS data:', e);
+    }
+
+    // Отправляем JSON с данными пользователя Telegram и ФИАС
     const data = {
-        location: address,
-        comment: comment,
+        raw_address: address,
+        description: comment,
         telegram_username: telegramUser ? (telegramUser.username || null) : null,
         telegram_user_id: telegramUser ? (telegramUser.id || null) : null,
         telegram_first_name: telegramUser ? (telegramUser.first_name || null) : null,
-        telegram_last_name: telegramUser ? (telegramUser.last_name || null) : null
+        telegram_last_name: telegramUser ? (telegramUser.last_name || null) : null,
+        // ФИАС данные (если есть)
+        fias_id: fiasData ? fiasData.fias_id : null,
+        latitude: fiasData ? fiasData.geo_lat : null,
+        longitude: fiasData ? fiasData.geo_lon : null
     };
 
     console.log('Отправляю заявку:', data);
@@ -52,10 +67,9 @@ function submitApplication() {
         console.log('Ответ JSON:', result);
         if (result.success) {
             alert('Заявка успешно отправлена!');
-            const addressInput = document.querySelector('.adress-input');
-            const commentInput = document.querySelector('.comment-textarea');
-            if (addressInput) addressInput.value = '';
-            if (commentInput) commentInput.value = '';
+            addressInput.value = '';
+            addressInput.setAttribute('data-fias', '');
+            commentInput.value = '';
             const homeBtn = document.querySelector('.header-buttons .button:first-child');
             if (homeBtn) {
                 showScreen('home-applications', homeBtn);
@@ -175,6 +189,9 @@ function displayUserGreeting() {
 window.addEventListener('DOMContentLoaded', function() {
     // Инициализируем Telegram Mini App
     initTelegramApp();
+
+    // Инициализируем DaData автоподсказки
+    initDadataAutocomplete();
 
     loadApplications();
     const submitBtn = document.querySelector('.submit-btn');

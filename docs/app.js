@@ -414,12 +414,15 @@ async function reverseGeocode(lat, lon) {
     const addressInput = document.querySelector('.adress-input');
 
     try {
+        console.log('Reverse geocoding for:', { lat, lon });
+        console.log('Using DADATA_API_KEY:', DADATA_API_KEY ? 'Present' : 'Missing');
+
         const response = await fetch('https://suggestions.dadata.ru/suggestions/api/4_1/rs/geolocate/address', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'Authorization': `Token ${DADATA_TOKEN}`
+                'Authorization': `Token ${DADATA_API_KEY}`
             },
             body: JSON.stringify({
                 lat: lat,
@@ -428,7 +431,16 @@ async function reverseGeocode(lat, lon) {
             })
         });
 
+        console.log('DaData response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('DaData API error:', errorText);
+            throw new Error(`API error: ${response.status}`);
+        }
+
         const data = await response.json();
+        console.log('DaData response:', data);
 
         if (data.suggestions && data.suggestions.length > 0) {
             const suggestion = data.suggestions[0];
@@ -445,11 +457,12 @@ async function reverseGeocode(lat, lon) {
 
             console.log('Address found:', address);
         } else {
+            console.warn('No suggestions returned from DaData');
             alert('Не удалось определить адрес по координатам');
         }
     } catch (error) {
         console.error('Reverse geocoding error:', error);
-        alert('Ошибка при определении адреса');
+        alert('Ошибка при определении адреса: ' + error.message);
     }
 }
 

@@ -340,7 +340,118 @@ window.addEventListener('DOMContentLoaded', function() {
     if (submitBtn) {
         submitBtn.addEventListener('click', submitApplication);
     }
+
+    // Обработчик кнопки "Использовать текущее местоположение"
+    const locationBtn = document.querySelector('.button-add-adress');
+    if (locationBtn) {
+        locationBtn.addEventListener('click', useCurrentLocation);
+    }
 });
+
+// Функция для получения местоположения из Telegram
+function useCurrentLocation() {
+    if (!window.Telegram || !window.Telegram.WebApp) {
+        alert('Telegram WebApp не доступен');
+        return;
+    }
+
+    const tg = window.Telegram.WebApp;
+
+    // Показываем индикатор загрузки
+    const locationBtn = document.querySelector('.button-add-adress');
+    const originalText = locationBtn ? locationBtn.textContent : '';
+    if (locationBtn) {
+        locationBtn.textContent = 'Получение местоположения...';
+        locationBtn.disabled = true;
+    }
+
+    // Запрашиваем местоположение у Telegram
+    // В Telegram WebApp API нет callback для requestLocation
+    // Используем LocationManager или проверяем initDataUnsafe
+
+    // Пытаемся получить из браузерной геолокации (работает и в Telegram WebView)
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                console.log('Location received:', { lat, lon });
+
+                // Обратный геокодинг через DaData
+                reverseGeocode(lat, lon).finally(() => {
+                    if (locationBtn) {
+                        locationBtn.textContent = originalText;
+                        locationBtn.disabled = false;
+                    }
+                });
+            },
+            (error) => {
+                console.error('Geolocation error:', error);
+                alert('Не удалось получить местоположение. Проверьте разрешения.');
+                if (locationBtn) {
+                    locationBtn.textContent = originalText;
+                    locationBtn.disabled = false;
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        alert('Геолокация не поддерживается');
+        if (locationBtn) {
+            locationBtn.textContent = originalText;
+            locationBtn.disabled = false;
+        }
+    }
+}
+
+// Обратный геокодинг: координаты → адрес
+async function reverseGeocode(lat, lon) {
+    const addressInput = document.querySelector('.adress-input');
+
+    try {
+        const response = await fetch('https://suggestions.dadata.ru/suggestions/api/4_1/rs/geolocate/address', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Token ${DADATA_TOKEN}`
+            },
+            body: JSON.stringify({
+                lat: lat,
+                lon: lon,
+                count: 1
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.suggestions && data.suggestions.length > 0) {
+            const suggestion = data.suggestions[0];
+            const address = suggestion.value;
+            const fiasData = {
+                fias_id: suggestion.data.fias_id,
+                geo_lat: suggestion.data.geo_lat,
+                geo_lon: suggestion.data.geo_lon
+            };
+
+            // Устанавливаем адрес в поле
+            addressInput.value = address;
+            addressInput.setAttribute('data-fias', JSON.stringify(fiasData));
+
+            console.log('Address found:', address);
+        } else {
+            alert('Не удалось определить адрес по координатам');
+        }
+    } catch (error) {
+        console.error('Reverse geocoding error:', error);
+        alert('Ошибка при определении адреса');
+    }
+}
 
 // Автообновление списка заявок каждые 10 секунд
 setInterval(loadApplications, 10000);

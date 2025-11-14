@@ -10,6 +10,7 @@ function showScreen(screenId, clickedButton) {
 async function submitApplication() {
     const addressInput = document.querySelector('.adress-input');
     const commentInput = document.querySelector('.comment-textarea');
+    const submitBtn = document.querySelector('.submit-btn');
 
     if (!addressInput || !commentInput) {
         console.error('Не найдены элементы формы');
@@ -23,6 +24,12 @@ async function submitApplication() {
     if (!address || !comment) {
         alert('Пожалуйста, заполните адрес и комментарий');
         return;
+    }
+
+    // Блокируем кнопку на время отправки
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
     }
 
     // Получаем ФИАС данные из data-атрибута
@@ -76,7 +83,16 @@ async function submitApplication() {
         if (hasPhotos) {
             if (!reportId) {
                 alert('Сервер не вернул номер заявки. Попробуйте ещё раз.');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Отправить заявку';
+                }
                 return;
+            }
+
+            // Обновляем текст кнопки во время загрузки фото
+            if (submitBtn) {
+                submitBtn.textContent = 'Загрузка фото...';
             }
 
             try {
@@ -94,6 +110,12 @@ async function submitApplication() {
     } catch (error) {
         console.error('Ошибка при отправке заявки:', error);
         alert(error.message || 'Ошибка соединения с сервером');
+    } finally {
+        // Разблокируем кнопку в любом случае
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Отправить заявку';
+        }
     }
 }
 

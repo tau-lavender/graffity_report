@@ -81,16 +81,16 @@ function submitApplication() {
                 console.log('📤 Начинаю загрузку фотографий для заявки', reportId);
                 uploadPhotos(reportId).then(uploadedKeys => {
                     console.log('✅ Фото загружены:', uploadedKeys);
-                    alert(`Заявка успешно отправлена! Загружено фото: ${uploadedKeys.length}`);
+                    console.log(`✅ Заявка успешно отправлена! Загружено фото: ${uploadedKeys.length}`);
                     resetForm();
                 }).catch(uploadError => {
                     console.error('❌ Ошибка загрузки фото:', uploadError);
-                    alert('Заявка отправлена, но возникла ошибка при загрузке фото');
+                    console.log('⚠️ Заявка отправлена, но возникла ошибка при загрузке фото');
                     resetForm();
                 });
             } else {
                 console.log('ℹ️ Фото не выбраны или нет report_id');
-                alert('Заявка успешно отправлена!');
+                console.log('✅ Заявка успешно отправлена!');
                 resetForm();
             }
         } else {
@@ -265,35 +265,50 @@ async function uploadPhotos(reportId) {
     const uploadedKeys = [];
 
     for (let i = 0; i < selectedPhotos.length; i++) {
-        if (!selectedPhotos[i]) continue;
+        const file = selectedPhotos[i];
+        if (!file) continue;
 
-        console.log(`📤 Загружаю фото ${i}:`, selectedPhotos[i].name, selectedPhotos[i].size, 'bytes');
+        console.log(`📤 Загружаю фото ${i}:`, file.name, file.size, 'bytes');
 
         const formData = new FormData();
-        formData.append('file', selectedPhotos[i]);
+        formData.append('file', file);
         formData.append('report_id', reportId);
 
-        try {
-            console.log(`🌐 Отправляю POST на ${API_URL}/api/upload/photo`);
-            const response = await fetch(`${API_URL}/api/upload/photo`, {
-                method: 'POST',
-                body: formData
-            });
+        // Попытки с ретраем (2 попытки)
+        let success = false;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                console.log(`🌐 Попытка ${attempt}/2: POST на ${API_URL}/api/upload/photo`);
+                const response = await fetch(`${API_URL}/api/upload/photo`, {
+                    method: 'POST',
+                    body: formData,
+                    mode: 'cors'
+                });
 
-            console.log(`📥 Ответ получен, status: ${response.status}`);
-            const result = await response.json();
-            console.log(`📄 Ответ JSON:`, result);
+                console.log(`📥 Ответ получен, status: ${response.status}`);
+                const result = await response.json();
+                console.log(`📄 Ответ JSON:`, result);
 
-            if (result.success) {
-                uploadedKeys.push(result.s3_key);
-                console.log(`✅ Фото ${i} загружено:`, result.s3_key);
-            } else {
-                console.error(`❌ Ошибка загрузки фото ${i}:`, result.error);
-                alert(`Ошибка загрузки фото ${i + 1}: ${result.error}`);
+                if (result.success) {
+                    uploadedKeys.push(result.s3_key);
+                    console.log(`✅ Фото ${i} загружено:`, result.s3_key);
+                    success = true;
+                    break;
+                } else {
+                    console.error(`❌ Сервер вернул ошибку:`, result.error);
+                    if (attempt === 2) {
+                        console.error(`Фото ${i} не загружено после 2 попыток`);
+                    }
+                }
+            } catch (error) {
+                console.error(`❌ Ошибка сети (попытка ${attempt}):`, error);
+                if (attempt < 2) {
+                    console.log('Жду 800ms перед повтором...');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                } else {
+                    console.error(`Фото ${i} не загружено: сетевая ошибка`);
+                }
             }
-        } catch (error) {
-            console.error(`❌ Ошибка сети при загрузке фото ${i}:`, error);
-            alert(`Ошибка сети при загрузке фото ${i + 1}`);
         }
     }
 
@@ -306,6 +321,7 @@ function initTelegramApp() {
     if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
+        tg.expand();
 
         // Получаем данные пользователя
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {

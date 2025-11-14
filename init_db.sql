@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Graffiti reports table: main application data
 CREATE TABLE IF NOT EXISTS graffiti_reports (
     report_id SERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES users(user_id) ON DELETE SET NULL,
     location GEOGRAPHY(POINT, 4326),
     fias_id UUID,
     normalized_address TEXT,

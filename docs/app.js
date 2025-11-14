@@ -259,7 +259,7 @@ function handlePhotoSelected(index) {
     console.log(`Фото ${index} выбрано:`, file.name);
 }
 
-// Загрузка фото на сервер
+// Загрузка фото на сервер (через base64 вместо FormData для совместимости с Telegram WebView)
 async function uploadPhotos(reportId) {
     console.log('📸 uploadPhotos вызван с reportId:', reportId);
     const uploadedKeys = [];
@@ -270,18 +270,34 @@ async function uploadPhotos(reportId) {
 
         console.log(`📤 Загружаю фото ${i}:`, file.name, file.size, 'bytes');
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('report_id', reportId);
+        // Конвертируем файл в base64
+        const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]); // Убираем "data:image/...;base64,"
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        const payload = {
+            report_id: reportId,
+            filename: file.name,
+            content_type: file.type,
+            data: base64
+        };
+
+        console.log(`📦 Подготовлен payload: filename=${file.name}, size=${base64.length} chars`);
 
         // Попытки с ретраем (2 попытки)
         let success = false;
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
-                console.log(`🌐 Попытка ${attempt}/2: POST на ${API_URL}/api/upload/photo`);
-                const response = await fetch(`${API_URL}/api/upload/photo`, {
+                console.log(`🌐 Попытка ${attempt}/2: POST на ${API_URL}/api/upload/photo/base64`);
+                const response = await fetch(`${API_URL}/api/upload/photo/base64`, {
                     method: 'POST',
-                    body: formData,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
                     mode: 'cors'
                 });
 

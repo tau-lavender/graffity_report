@@ -9,15 +9,10 @@ def create_app():
 
     # Configure CORS for ALL routes (not just /api/*)
     CORS(app,
-         origins=[
-             "https://tau-lavender.github.io",
-             "http://localhost:8080",
-             "http://0.0.0.0:8080",
-             "null"  # Для локальных файлов file://
-         ],
+         origins="*",  # Разрешаем все origins для тестирования
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],
-         supports_credentials=True)
+         supports_credentials=False)  # Нельзя использовать credentials с origins="*"
 
     # Initialize database (if DATABASE_URL is set)
     try:

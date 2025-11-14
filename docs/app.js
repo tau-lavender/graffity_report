@@ -66,14 +66,20 @@ function submitApplication() {
     .then(result => {
         console.log('Ответ JSON:', result);
         if (result.success) {
-            alert('Заявка успешно отправлена!');
-            addressInput.value = '';
-            addressInput.setAttribute('data-fias', '');
-            commentInput.value = '';
-            const homeBtn = document.querySelector('.header-buttons .button:first-child');
-            if (homeBtn) {
-                showScreen('home-applications', homeBtn);
-                loadApplications();
+            const reportId = result.report_id;
+
+            // Загружаем фото, если есть
+            const hasPhotos = selectedPhotos.some(photo => photo !== null);
+            if (hasPhotos && reportId) {
+                console.log('Загружаю фотографии для заявки', reportId);
+                uploadPhotos(reportId).then(uploadedKeys => {
+                    console.log('Фото загружены:', uploadedKeys);
+                    alert(`Заявка успешно отправлена! Загружено фото: ${uploadedKeys.length}`);
+                    resetForm();
+                });
+            } else {
+                alert('Заявка успешно отправлена!');
+                resetForm();
             }
         } else {
             alert('Ошибка: ' + (result.error || 'Не удалось отправить заявку'));
@@ -83,6 +89,41 @@ function submitApplication() {
         console.error('Ошибка сети:', error);
         alert('Ошибка соединения с сервером: ' + error.message);
     });
+}
+
+// Сброс формы после отправки
+function resetForm() {
+    const addressInput = document.querySelector('.adress-input');
+    const commentInput = document.querySelector('.comment-textarea');
+
+    if (addressInput) {
+        addressInput.value = '';
+        addressInput.setAttribute('data-fias', '');
+    }
+    if (commentInput) {
+        commentInput.value = '';
+    }
+
+    // Очищаем фото
+    selectedPhotos = [null, null, null];
+    for (let i = 0; i < 3; i++) {
+        const slot = document.getElementById(`photo-slot-${i}`);
+        const input = document.getElementById(`photo-input-${i}`);
+        if (slot) {
+            slot.style.backgroundImage = '';
+            slot.innerHTML = '<div class="photo-icon"></div><div class="mini-text">Добавить</div>';
+        }
+        if (input) {
+            input.value = '';
+        }
+    }
+
+    // Переключаемся на экран заявок
+    const homeBtn = document.querySelector('.header-buttons .button:first-child');
+    if (homeBtn) {
+        showScreen('home-applications', homeBtn);
+        loadApplications();
+    }
 }
 
 //Создание карточек заявок
@@ -95,12 +136,22 @@ function createAppCard(app) {
 
     const status = STATUS_TEXTS[app.status] || 'Ожидает';
 
+    // Создаем галерею фото, если есть
+    let photoGallery = '';
+    if (app.photos && app.photos.length > 0) {
+        const photoItems = app.photos.map(photo =>
+            `<img src="${photo.url}" class="card-photo" alt="Фото граффити">`
+        ).join('');
+        photoGallery = `<div class="card-photos">${photoItems}</div>`;
+    }
+
     return `
-        <div class="card">
+        <div class="card" data-report-id="${app.id}">
             <div class="adress-slot">
                 <div class="geo-icon"></div>
                 <div class="title-text">${app.location || app.address || '-'}</div>
             </div>
+            ${photoGallery}
             <div class="main-text">${app.comment || '-'}</div>
             <span class="mini-text status ${app.status || 'pending'}">${status}</span>
         </div>
@@ -147,6 +198,87 @@ document.querySelectorAll('.auto-expand').forEach(function(textarea) {
 
 // Глобальная переменная для хранения данных пользователя Telegram
 let telegramUser = null;
+
+// Массив для хранения выбранных фото
+let selectedPhotos = [null, null, null];
+
+// Триггер выбора фото
+function triggerPhotoUpload(index) {
+    const input = document.getElementById(`photo-input-${index}`);
+    if (input) {
+        input.click();
+    }
+}
+
+// Обработка выбранного фото
+function handlePhotoSelected(index) {
+    const input = document.getElementById(`photo-input-${index}`);
+    const slot = document.getElementById(`photo-slot-${index}`);
+
+    if (!input || !input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+
+    // Проверка размера (макс 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('Файл слишком большой. Максимум 10 МБ');
+        return;
+    }
+
+    // Проверка типа
+    if (!file.type.startsWith('image/')) {
+        alert('Пожалуйста, выберите изображение');
+        return;
+    }
+
+    // Сохраняем файл
+    selectedPhotos[index] = file;
+
+    // Показываем превью
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        slot.style.backgroundImage = `url(${e.target.result})`;
+        slot.style.backgroundSize = 'cover';
+        slot.style.backgroundPosition = 'center';
+        slot.innerHTML = '<div class="mini-text" style="background: rgba(0,0,0,0.5); color: white; padding: 4px;">Изменить</div>';
+    };
+    reader.readAsDataURL(file);
+
+    console.log(`Фото ${index} выбрано:`, file.name);
+}
+
+// Загрузка фото на сервер
+async function uploadPhotos(reportId) {
+    const uploadedKeys = [];
+
+    for (let i = 0; i < selectedPhotos.length; i++) {
+        if (!selectedPhotos[i]) continue;
+
+        const formData = new FormData();
+        formData.append('file', selectedPhotos[i]);
+        formData.append('report_id', reportId);
+
+        try {
+            const response = await fetch(`${API_URL}/api/upload/photo`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                uploadedKeys.push(result.s3_key);
+                console.log(`Фото ${i} загружено:`, result.s3_key);
+            } else {
+                console.error(`Ошибка загрузки фото ${i}:`, result.error);
+            }
+        } catch (error) {
+            console.error(`Ошибка загрузки фото ${i}:`, error);
+        }
+    }
+
+    return uploadedKeys;
+}
 
 // Инициализация Telegram Web App
 function initTelegramApp() {

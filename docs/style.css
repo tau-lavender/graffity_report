@@ -125,6 +125,22 @@ header {
     background: url('assets/camera.svg') center no-repeat;
 }
 
+/* Галерея фото в карточках заявок */
+.card-photos {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.card-photo {
+    max-height: 120px;
+    max-width: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
 /*===============card add adress===============*/
 .adress-input {
     width: 100%;

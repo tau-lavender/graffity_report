@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app # type: ignore
-from src.models import User, GraffitiReport
-from src.util import get_db_session
+from src.models import User, GraffitiReport, ReportPhoto
+from src.util import get_db_session, get_file_url
 from src.singleton import SingletonClass
 from src.dadata_helper import normalize_address
 from decouple import config # type: ignore
@@ -131,6 +131,20 @@ def get_applications():
 
             result = []
             for report in reports:
+                # Получаем фото для этой заявки
+                photos = session.query(ReportPhoto).filter_by(report_id=report.report_id).all()
+                photo_urls = []
+                for photo in photos:
+                    try:
+                        url = get_file_url(photo.s3_key)
+                        if url:
+                            photo_urls.append({
+                                'id': photo.photo_id,
+                                'url': url
+                            })
+                    except Exception as e:
+                        current_app.logger.error(f"Error getting photo URL for {photo.s3_key}: {e}")
+
                 result.append({
                     'id': report.report_id,
                     'location': report.normalized_address or '',
@@ -140,7 +154,8 @@ def get_applications():
                     'telegram_user_id': report.user.user_id,
                     'telegram_first_name': report.user.first_name,
                     'telegram_last_name': report.user.last_name,
-                    'created_at': report.created_at.isoformat()
+                    'created_at': report.created_at.isoformat(),
+                    'photos': photo_urls
                 })
 
             return jsonify(result)

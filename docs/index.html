@@ -31,21 +31,26 @@
                 <div class="title-text">Фотографии граффити</div>
 
                 <div class="photo-grid">
-                    <div class="photo-slot" onclick="triggerPhotoUpload(1)">
+                    <div class="photo-slot" onclick="triggerPhotoUpload(0)" id="photo-slot-0">
                         <div class="photo-icon"></div>
                         <div class="mini-text">Добавить</div>
                     </div>
-                    <div class="photo-slot">
+                    <div class="photo-slot" onclick="triggerPhotoUpload(1)" id="photo-slot-1">
                         <div class="photo-icon"></div>
                         <div class="mini-text">Добавить</div>
                     </div>
-                    <div class="photo-slot">
+                    <div class="photo-slot" onclick="triggerPhotoUpload(2)" id="photo-slot-2">
                         <div class="photo-icon"></div>
                         <div class="mini-text">Добавить</div>
                     </div>
                 </div>
 
                 <div class="mini-text">Вы можете добавить 3 фотографии</div>
+
+                <!-- Скрытые input для загрузки файлов -->
+                <input type="file" id="photo-input-0" accept="image/*" style="display: none;" onchange="handlePhotoSelected(0)">
+                <input type="file" id="photo-input-1" accept="image/*" style="display: none;" onchange="handlePhotoSelected(1)">
+                <input type="file" id="photo-input-2" accept="image/*" style="display: none;" onchange="handlePhotoSelected(2)">
             </div>
             <!--card add adress-->
             <div class="card">

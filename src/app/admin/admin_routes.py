@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app # type: ignore
 from src.models import User, GraffitiReport, ReportPhoto
-from src.util import get_db_session, get_file_url
+from src.util import get_db_session
 from src.singleton import SingletonClass
 from src.dadata_helper import normalize_address
 from decouple import config # type: ignore
@@ -158,16 +158,12 @@ def get_applications():
                 photos = session.query(ReportPhoto).filter_by(report_id=report.report_id).all()
                 photo_urls = []
                 for photo in photos:
-                    try:
-                        url = get_file_url(photo.s3_key)
-                        # Добавляем запись даже если URL не сгенерирован (MinIO не настроен)
-                        photo_urls.append({
-                            'id': photo.photo_id,
-                            'url': url if url else None,
-                            's3_key': photo.s3_key
-                        })
-                    except Exception as e:
-                        current_app.logger.error(f"Error getting photo URL for {photo.s3_key}: {e}")
+                    # Используем публичный download endpoint вместо presigned URL
+                    photo_urls.append({
+                        'id': photo.photo_id,
+                        'url': f'/api/photo/download/{photo.photo_id}',
+                        's3_key': photo.s3_key
+                    })
 
                 result.append({
                     'id': report.report_id,
@@ -308,7 +304,6 @@ def get_all_photos():
 def get_photo_url(photo_id):
     """Get presigned URL for photo download."""
     from src.util import get_file_url
-    from src.models import ReportPhoto
 
     if not os.environ.get('DATABASE_URL'):
         return jsonify(error='Database not configured'), 500
@@ -332,11 +327,58 @@ def get_photo_url(photo_id):
         return jsonify(error=str(e)), 500
 
 
+@admin_bp.route('/api/photo/download/<int:photo_id>', methods=['GET'])
+def download_photo(photo_id):
+    """Download photo file directly from MinIO."""
+    from src.util import get_file_from_s3
+    from src.models import ReportPhoto
+    from flask import send_file
+    import io
+
+    if not os.environ.get('DATABASE_URL'):
+        return jsonify(error='Database not configured'), 500
+
+    try:
+        with get_db_session() as session:
+            photo = session.query(ReportPhoto).filter_by(photo_id=photo_id).first()
+
+            if not photo:
+                return jsonify(error='Photo not found'), 404
+
+            file_bytes = get_file_from_s3(photo.s3_key)
+
+            if not file_bytes:
+                return jsonify(error='Failed to download file from storage'), 500
+
+            # Определяем MIME-тип из расширения
+            ext = photo.s3_key.rsplit('.', 1)[-1].lower() if '.' in photo.s3_key else 'jpg'
+            mime_types = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'webp': 'image/webp'
+            }
+            mime_type = mime_types.get(ext, 'image/jpeg')
+
+            return send_file(
+                io.BytesIO(file_bytes),
+                mimetype=mime_type,
+                as_attachment=False,
+                download_name=f'photo_{photo_id}.{ext}'
+            )
+
+    except Exception as e:
+        current_app.logger.error(f"Error downloading photo: {e}")
+        return jsonify(error=str(e)), 500
+        current_app.logger.error(f"Error getting photo URL: {e}")
+        return jsonify(error=str(e)), 500
+
+
 @admin_bp.route('/api/report/<int:report_id>/photos', methods=['GET'])
 def get_report_photos(report_id):
     """Get all photo URLs for a report."""
     from src.util import get_file_url
-    from src.models import ReportPhoto
 
     if not os.environ.get('DATABASE_URL'):
         return jsonify(error='Database not configured'), 500

@@ -235,6 +235,30 @@ def get_file_url(s3_key: str, expires_in: int = 3600) -> Optional[str]:
         return None
 
 
+def get_file_from_s3(s3_key: str) -> Optional[bytes]:
+    """
+    Download file from MinIO/S3.
+
+    Args:
+        s3_key: S3 object key (filename)
+
+    Returns:
+        File bytes or None
+    """
+    s3 = get_s3_client()
+    if not s3:
+        return None
+
+    bucket = os.environ.get('MINIO_BUCKET', 'graffiti-reports')
+
+    try:
+        response = s3.get_object(Bucket=bucket, Key=s3_key)
+        return response['Body'].read()
+    except Exception as e:
+        print(f"S3 download error: {e}")
+        return None
+
+
 def delete_file_from_s3(s3_key: str) -> bool:
     """Delete file from MinIO/S3."""
     s3 = get_s3_client()

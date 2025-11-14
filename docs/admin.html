@@ -61,7 +61,10 @@
                 : `<div class="photo-grid">${list.map(photo => {
                     const safeKey = escapeHtml(photo.s3_key || `photo-${photo.id || ''}`);
                     if (photo.url) {
-                        const safeUrl = escapeHtml(photo.url);
+                        const photoUrl = photo.url.startsWith('/')
+                            ? `${API_URL}${photo.url}`
+                            : photo.url;
+                        const safeUrl = escapeHtml(photoUrl);
                         return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer"><img src="${safeUrl}" alt="Фото заявки ${escapeHtml(reportId)}"></a>`;
                     }
                     return `<div class="photo-placeholder">${safeKey}</div>`;

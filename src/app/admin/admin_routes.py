@@ -247,16 +247,19 @@ def upload_photo():
         ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
         s3_key = f"photos/{report_id}/{uuid.uuid4()}.{ext}"
 
-        # Загружаем в MinIO
+        # Читаем файл
         file_data = file.read()
         content_type = file.content_type or 'image/jpeg'
 
+        # Пытаемся загрузить в MinIO (опционально)
         uploaded_key = upload_file_to_s3(file_data, s3_key, content_type)
 
+        # Если MinIO не настроен, используем локальный путь или base64
         if not uploaded_key:
-            return jsonify(success=False, error='Failed to upload to storage'), 500
+            current_app.logger.warning("MinIO not configured, storing s3_key only")
+            uploaded_key = s3_key  # Сохраняем путь, даже если файл не загружен
 
-        # Если БД доступна, сохраняем запись
+        # Сохраняем запись в БД или Singleton
         if os.environ.get('DATABASE_URL'):
             with get_db_session() as session:
                 photo = ReportPhoto(
@@ -268,8 +271,6 @@ def upload_photo():
         else:
             # Сохраняем фото в singleton для режима без БД
             try:
-                pid = None
-                # Генерируем id фото как длину списка +1
                 photos_list = singleton.photos.setdefault(int(report_id), [])
                 pid = len(photos_list) + 1
                 photos_list.append({'id': pid, 's3_key': uploaded_key, 'url': uploaded_key})

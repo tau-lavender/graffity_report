@@ -185,3 +185,118 @@ def moderate():
     except Exception as e:
         current_app.logger.error(f"Error in /api/applications/moderate: {e}")
         return jsonify(success=False, error=str(e)), 500
+
+
+@admin_bp.route('/api/upload/photo', methods=['POST'])
+def upload_photo():
+    """Upload photo to MinIO and attach to report."""
+    from src.util import upload_file_to_s3
+    from src.models import ReportPhoto
+    import uuid
+
+    if 'file' not in request.files:
+        return jsonify(success=False, error='No file provided'), 400
+
+    file = request.files['file']
+    report_id = request.form.get('report_id')
+
+    if not report_id:
+        return jsonify(success=False, error='report_id is required'), 400
+
+    if file.filename == '':
+        return jsonify(success=False, error='Empty filename'), 400
+
+    try:
+        # Генерируем уникальное имя файла
+        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
+        s3_key = f"photos/{report_id}/{uuid.uuid4()}.{ext}"
+
+        # Загружаем в MinIO
+        file_data = file.read()
+        content_type = file.content_type or 'image/jpeg'
+
+        uploaded_key = upload_file_to_s3(file_data, s3_key, content_type)
+
+        if not uploaded_key:
+            return jsonify(success=False, error='Failed to upload to storage'), 500
+
+        # Если БД доступна, сохраняем запись
+        if os.environ.get('DATABASE_URL'):
+            with get_db_session() as session:
+                photo = ReportPhoto(
+                    report_id=int(report_id),
+                    s3_key=uploaded_key
+                )
+                session.add(photo)
+                # Context manager делает commit
+
+        return jsonify(
+            success=True,
+            s3_key=uploaded_key,
+            message='Photo uploaded successfully'
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error uploading photo: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify(success=False, error=str(e)), 500
+
+
+@admin_bp.route('/api/photo/<int:photo_id>', methods=['GET'])
+def get_photo_url(photo_id):
+    """Get presigned URL for photo download."""
+    from src.util import get_file_url
+    from src.models import ReportPhoto
+
+    if not os.environ.get('DATABASE_URL'):
+        return jsonify(error='Database not configured'), 500
+
+    try:
+        with get_db_session() as session:
+            photo = session.query(ReportPhoto).filter_by(photo_id=photo_id).first()
+
+            if not photo:
+                return jsonify(error='Photo not found'), 404
+
+            url = get_file_url(photo.s3_key, expires_in=3600)
+
+            if not url:
+                return jsonify(error='Failed to generate URL'), 500
+
+            return jsonify(url=url, s3_key=photo.s3_key)
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting photo URL: {e}")
+        return jsonify(error=str(e)), 500
+
+
+@admin_bp.route('/api/report/<int:report_id>/photos', methods=['GET'])
+def get_report_photos(report_id):
+    """Get all photo URLs for a report."""
+    from src.util import get_file_url
+    from src.models import ReportPhoto
+
+    if not os.environ.get('DATABASE_URL'):
+        return jsonify(error='Database not configured'), 500
+
+    try:
+        with get_db_session() as session:
+            photos = session.query(ReportPhoto).filter_by(report_id=report_id).all()
+
+            result = []
+            for photo in photos:
+                url = get_file_url(photo.s3_key, expires_in=3600)
+                if url:
+                    result.append({
+                        'photo_id': photo.photo_id,
+                        'url': url,
+                        's3_key': photo.s3_key,
+                        'uploaded_at': photo.uploaded_at.isoformat()
+                    })
+
+            return jsonify(photos=result)
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting report photos: {e}")
+        return jsonify(error=str(e)), 500

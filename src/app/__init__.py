@@ -25,6 +25,14 @@ def create_app():
     except Exception as e:
         app.logger.warning(f"Database setup skipped: {e}")
 
+    # Initialize MinIO storage
+    try:
+        from src.util import init_minio
+        with app.app_context():
+            init_minio()
+    except Exception as e:
+        app.logger.warning(f"MinIO setup skipped: {e}")
+
     # Register all blueprints
     for blueprint in blueprints:
         app.register_blueprint(blueprint)
@@ -64,6 +72,34 @@ def create_app():
                 except Exception:
                     pgv_gis = None
             return jsonify(ok=True, postgres=str(pgv), postgis=str(pgv_gis) if pgv_gis else None), 200
+        except Exception as e:
+            return jsonify(ok=False, error=str(e)), 200
+
+    # MinIO/S3 storage health endpoint
+    @app.route('/api/storage/health', methods=['GET'])
+    def storage_health():
+        import os
+        from src.util import get_s3_client
+
+        endpoint = os.environ.get('MINIO_ENDPOINT')
+        if not endpoint:
+            return jsonify(ok=False, error="MINIO_ENDPOINT not set"), 200
+
+        try:
+            s3 = get_s3_client()
+            if not s3:
+                return jsonify(ok=False, error="S3 client not initialized"), 200
+
+            bucket = os.environ.get('MINIO_BUCKET', 'graffiti-reports')
+            buckets = [b['Name'] for b in s3.list_buckets()['Buckets']]
+
+            return jsonify(
+                ok=True,
+                endpoint=endpoint,
+                bucket=bucket,
+                bucket_exists=bucket in buckets,
+                all_buckets=buckets
+            ), 200
         except Exception as e:
             return jsonify(ok=False, error=str(e)), 200
 

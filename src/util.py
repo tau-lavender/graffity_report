@@ -3,6 +3,9 @@ Database utilities and session management.
 """
 import os
 from contextlib import contextmanager
+from typing import Optional
+import boto3  # type: ignore
+from botocore.client import Config  # type: ignore
 from sqlalchemy import create_engine  # type: ignore
 from sqlalchemy.orm import sessionmaker, Session  # type: ignore
 from src.models import Base
@@ -115,3 +118,134 @@ def get_or_create_user(db: Session, telegram_user: dict):
         db.flush()  # Get user_id without committing transaction
 
     return user
+
+
+# ============================================================
+# MinIO / S3 Storage utilities
+# ============================================================
+
+_s3_client = None
+
+
+def get_s3_client():
+    """Get MinIO/S3 client (singleton)."""
+    global _s3_client
+
+    if _s3_client is not None:
+        return _s3_client
+
+    endpoint = os.environ.get('MINIO_ENDPOINT')
+    access_key = os.environ.get('MINIO_ACCESS_KEY')
+    secret_key = os.environ.get('MINIO_SECRET_KEY')
+
+    if not all([endpoint, access_key, secret_key]):
+        return None
+
+    _s3_client = boto3.client(
+        's3',
+        endpoint_url=endpoint,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        config=Config(signature_version='s3v4'),
+        region_name='us-east-1'
+    )
+
+    return _s3_client
+
+
+def init_minio():
+    """Initialize MinIO bucket if not exists."""
+    s3 = get_s3_client()
+    if not s3:
+        print("⚠️  MinIO not configured (MINIO_ENDPOINT not set)")
+        return
+
+    bucket = os.environ.get('MINIO_BUCKET', 'graffiti-reports')
+
+    try:
+        # Проверяем существование bucket
+        existing_buckets = [b['Name'] for b in s3.list_buckets()['Buckets']]
+
+        if bucket not in existing_buckets:
+            s3.create_bucket(Bucket=bucket)
+            print(f"✅ MinIO bucket '{bucket}' created")
+        else:
+            print(f"✅ MinIO bucket '{bucket}' exists")
+    except Exception as e:
+        print(f"⚠️  MinIO init error: {e}")
+
+
+def upload_file_to_s3(file_data: bytes, filename: str, content_type: str = 'image/jpeg') -> Optional[str]:
+    """
+    Upload file to MinIO/S3.
+
+    Args:
+        file_data: File bytes
+        filename: Target filename (key) in bucket
+        content_type: MIME type
+
+    Returns:
+        S3 key (filename) on success, None on failure
+    """
+    s3 = get_s3_client()
+    if not s3:
+        return None
+
+    bucket = os.environ.get('MINIO_BUCKET', 'graffiti-reports')
+
+    try:
+        s3.put_object(
+            Bucket=bucket,
+            Key=filename,
+            Body=file_data,
+            ContentType=content_type
+        )
+        return filename
+    except Exception as e:
+        print(f"S3 upload error: {e}")
+        return None
+
+
+def get_file_url(s3_key: str, expires_in: int = 3600) -> Optional[str]:
+    """
+    Generate presigned URL for file download.
+
+    Args:
+        s3_key: S3 object key (filename)
+        expires_in: URL expiration time in seconds (default 1 hour)
+
+    Returns:
+        Presigned URL or None
+    """
+    s3 = get_s3_client()
+    if not s3:
+        return None
+
+    bucket = os.environ.get('MINIO_BUCKET', 'graffiti-reports')
+
+    try:
+        url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket, 'Key': s3_key},
+            ExpiresIn=expires_in
+        )
+        return url
+    except Exception as e:
+        print(f"Presigned URL error: {e}")
+        return None
+
+
+def delete_file_from_s3(s3_key: str) -> bool:
+    """Delete file from MinIO/S3."""
+    s3 = get_s3_client()
+    if not s3:
+        return False
+
+    bucket = os.environ.get('MINIO_BUCKET', 'graffiti-reports')
+
+    try:
+        s3.delete_object(Bucket=bucket, Key=s3_key)
+        return True
+    except Exception as e:
+        print(f"S3 delete error: {e}")
+        return False

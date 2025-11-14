@@ -242,6 +242,8 @@ def upload_photo():
     if file.filename == '':
         return jsonify(success=False, error='Empty filename'), 400
 
+    current_app.logger.info(f"📸 Photo upload started: report_id={report_id}, filename={file.filename}")
+
     try:
         # Генерируем уникальное имя файла
         ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
@@ -250,24 +252,40 @@ def upload_photo():
         # Читаем файл
         file_data = file.read()
         content_type = file.content_type or 'image/jpeg'
+        current_app.logger.info(f"📸 File read: size={len(file_data)} bytes, type={content_type}")
 
         # Пытаемся загрузить в MinIO (опционально)
         uploaded_key = upload_file_to_s3(file_data, s3_key, content_type)
 
         # Если MinIO не настроен, используем локальный путь или base64
         if not uploaded_key:
-            current_app.logger.warning("MinIO not configured, storing s3_key only")
+            current_app.logger.warning("⚠️ MinIO not configured, storing s3_key only")
             uploaded_key = s3_key  # Сохраняем путь, даже если файл не загружен
+        else:
+            current_app.logger.info(f"✅ Uploaded to MinIO: {uploaded_key}")
 
         # Сохраняем запись в БД или Singleton
-        if os.environ.get('DATABASE_URL'):
-            with get_db_session() as session:
-                photo = ReportPhoto(
-                    report_id=int(report_id),
-                    s3_key=uploaded_key
-                )
-                session.add(photo)
-                # Context manager делает commit
+        db_url = os.environ.get('DATABASE_URL')
+        current_app.logger.info(f"💾 DATABASE_URL present: {bool(db_url)}")
+
+        if db_url:
+            try:
+                with get_db_session() as session:
+                    photo = ReportPhoto(
+                        report_id=int(report_id),
+                        s3_key=uploaded_key
+                    )
+                    session.add(photo)
+                    session.flush()  # Получаем photo_id
+                    photo_id = photo.photo_id
+                    current_app.logger.info(f"✅ Photo saved to DB: photo_id={photo_id}, s3_key={uploaded_key}")
+                    # Context manager делает commit при выходе
+                current_app.logger.info("✅ Transaction committed successfully")
+            except Exception as db_error:
+                current_app.logger.error(f"❌ Database error: {db_error}")
+                import traceback
+                current_app.logger.error(traceback.format_exc())
+                raise
         else:
             # Сохраняем фото в singleton для режима без БД
             try:

@@ -103,6 +103,43 @@ def create_app():
         except Exception as e:
             return jsonify(ok=False, error=str(e)), 200
 
+    # Database schema check and init endpoint
+    @app.route('/api/db/init', methods=['POST'])
+    def init_db_tables():
+        """Create all tables if they don't exist. Use with caution."""
+        engine = app.config.get("DB_ENGINE")
+        if not engine:
+            return jsonify(ok=False, error="DATABASE_URL is not set"), 400
+
+        try:
+            from src.models import Base
+            from sqlalchemy import inspect
+
+            inspector = inspect(engine)
+            existing_tables = inspector.get_table_names()
+
+            # Create all tables
+            Base.metadata.create_all(engine)
+
+            # Check what was created
+            new_inspector = inspect(engine)
+            new_tables = new_inspector.get_table_names()
+
+            return jsonify(
+                ok=True,
+                message="Tables initialized",
+                existing_tables=existing_tables,
+                all_tables=new_tables,
+                created=list(set(new_tables) - set(existing_tables))
+            ), 200
+        except Exception as e:
+            import traceback
+            return jsonify(
+                ok=False,
+                error=str(e),
+                traceback=traceback.format_exc()
+            ), 500
+
     # Basic request logging to help diagnose 502/timeouts in production
     @app.before_request
     def _log_request():

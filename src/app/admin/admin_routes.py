@@ -1,12 +1,13 @@
-from flask import Blueprint, request, jsonify, current_app # type: ignore
+from flask import Blueprint, request, jsonify, current_app, send_file # type: ignore
+from geoalchemy2.shape import to_shape, from_shape # type: ignore
 from src.models import User, GraffitiReport, ReportPhoto
-from src.util import get_db_session
+from src.util import get_db_session, get_file_from_s3
 from src.singleton import SingletonClass
 from src.dadata_helper import normalize_address
 from decouple import config # type: ignore
-from geoalchemy2.shape import from_shape # type: ignore
 from shapely.geometry import Point # type: ignore
 import os
+import io
 
 admin_bp = Blueprint('admin', __name__, template_folder='../templates')
 singleton = SingletonClass()  # Fallback to in-memory if DB not available
@@ -165,16 +166,35 @@ def get_applications():
                         's3_key': photo.s3_key
                     })
 
+                # Извлекаем координаты из Geography колонки
+                latitude = None
+                longitude = None
+                if report.location is not None:
+                    try:
+                        # Преобразуем Geography в Shapely геометрию
+                        shape = to_shape(report.location)
+                        longitude = shape.x
+                        latitude = shape.y
+                    except Exception as e:
+                        current_app.logger.warning(f"Failed to extract coordinates for report {report.report_id}: {e}")
+
                 result.append({
                     'id': report.report_id,
+                    'report_id': report.report_id,
                     'location': report.normalized_address or '',
+                    'normalized_address': report.normalized_address or '',
+                    'raw_address': report.normalized_address or '',
                     'comment': report.description or '',
+                    'description': report.description or '',
                     'status': report.status,
                     'telegram_username': report.user.username if report.user else None,
                     'telegram_user_id': report.user.user_id if report.user else None,
                     'telegram_first_name': report.user.first_name if report.user else None,
                     'telegram_last_name': report.user.last_name if report.user else None,
                     'created_at': report.created_at.isoformat(),
+                    'fias_id': str(report.fias_id) if report.fias_id else None,
+                    'latitude': latitude,
+                    'longitude': longitude,
                     'photos': photo_urls
                 })
 
@@ -330,10 +350,6 @@ def get_photo_url(photo_id):
 @admin_bp.route('/api/photo/download/<int:photo_id>', methods=['GET'])
 def download_photo(photo_id):
     """Download photo file directly from MinIO."""
-    from src.util import get_file_from_s3
-    from src.models import ReportPhoto
-    from flask import send_file
-    import io
 
     if not os.environ.get('DATABASE_URL'):
         return jsonify(error='Database not configured'), 500
@@ -370,8 +386,6 @@ def download_photo(photo_id):
 
     except Exception as e:
         current_app.logger.error(f"Error downloading photo: {e}")
-        return jsonify(error=str(e)), 500
-        current_app.logger.error(f"Error getting photo URL: {e}")
         return jsonify(error=str(e)), 500
 
 

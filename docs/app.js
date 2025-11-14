@@ -1,3 +1,9 @@
+// Глобальные переменные
+let map = null;
+let markersLayer = null;
+let applicationsData = [];
+let currentView = 'list';
+
 function showScreen(screenId, clickedButton) {
     if (!screenId || !clickedButton) return;
     document.querySelector('.screen.active').classList.remove('active');
@@ -5,6 +11,118 @@ function showScreen(screenId, clickedButton) {
     document.querySelector('.header-buttons .button.active').classList.remove('active');
     clickedButton.classList.add('active');
 }
+
+// Переключение между списком и картой
+function switchView(view) {
+    currentView = view;
+
+    // Обновляем кнопки
+    document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Переключаем вид
+    document.querySelectorAll('.applications-view').forEach(v => v.classList.remove('active'));
+
+    if (view === 'list') {
+        document.getElementById('applications-list').classList.add('active');
+    } else {
+        document.getElementById('applications-map').classList.add('active');
+        initMap();
+    }
+}
+
+// Инициализация карты
+function initMap() {
+    if (map) {
+        map.invalidateSize();
+        updateMapMarkers();
+        return;
+    }
+
+    // Создаем карту с центром на Москве
+    map = L.map('map').setView([55.751244, 37.618423], 11);
+
+    // Добавляем слой OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Создаем слой для маркеров
+    markersLayer = L.layerGroup().addTo(map);
+
+    // Добавляем маркеры
+    updateMapMarkers();
+}
+
+// Обновление маркеров на карте
+function updateMapMarkers() {
+    if (!map || !markersLayer) return;
+
+    // Очищаем старые маркеры
+    markersLayer.clearLayers();
+
+    const bounds = [];
+
+    applicationsData.forEach(app => {
+        // Используем координаты из FIAS данных
+        const lat = app.latitude;
+        const lon = app.longitude;
+
+        if (!lat || !lon) {
+            console.warn('No coordinates for application:', app.id);
+            return;
+        }
+
+        // Создаем маркер
+        const marker = L.marker([lat, lon]);
+
+        // Создаем popup с информацией
+        const popupContent = createPopupContent(app);
+        marker.bindPopup(popupContent);
+
+        // Добавляем маркер на карту
+        marker.addTo(markersLayer);
+        bounds.push([lat, lon]);
+    });
+
+    // Центрируем карту на всех маркерах
+    if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }
+}
+
+// Создание контента для popup маркера
+function createPopupContent(app) {
+    const STATUS_TEXTS = {
+        'approved': 'Одобрено',
+        'declined': 'Отклонено',
+        'pending': 'Ожидает'
+    };
+
+    const status = STATUS_TEXTS[app.status] || 'Ожидает';
+    const address = app.normalized_address || app.raw_address || 'Адрес не указан';
+    const description = app.description || 'Нет описания';
+
+    let photosHtml = '';
+    if (app.photos && app.photos.length > 0) {
+        const photoItems = app.photos.slice(0, 3).map(photo =>
+            `<img src="${API_URL}${photo.url}" alt="Фото" onclick="window.open('${API_URL}${photo.url}', '_blank')">`
+        ).join('');
+        photosHtml = `<div class="photos">${photoItems}</div>`;
+    }
+
+    return `
+        <div class="popup-content">
+            <div class="title">Заявка #${app.report_id}</div>
+            <div class="address">${address}</div>
+            <div class="description">${description}</div>
+            <span class="status ${app.status || 'pending'}">${status}</span>
+            ${photosHtml}
+        </div>
+    `;
+}
+
 
 // Отправка заявки с адресом, комментарием и данными Telegram
 async function submitApplication() {
@@ -200,20 +318,35 @@ function loadApplications() {
     fetch(url)
         .then(response => response.json())
         .then(apps => {
-            const container = document.getElementById('home-applications');
-            if (apps.length === 0) {
-                container.innerHTML = '<p>У вас пока нет заявок</p>';
-                return;
+            // Сохраняем данные глобально
+            applicationsData = apps;
+
+            // Обновляем список
+            updateApplicationsList(apps);
+
+            // Обновляем карту если она активна
+            if (currentView === 'map' && map) {
+                updateMapMarkers();
             }
-
-            let html = '';
-            apps.forEach(app => {
-                html += createAppCard(app);
-            });
-
-            container.innerHTML = html;
         })
         .catch(error => console.error('Ошибка загрузки:', error));
+}
+
+// Обновление списка заявок
+function updateApplicationsList(apps) {
+    const container = document.getElementById('applications-list');
+
+    if (apps.length === 0) {
+        container.innerHTML = '<p>У вас пока нет заявок</p>';
+        return;
+    }
+
+    let html = '';
+    apps.forEach(app => {
+        html += createAppCard(app);
+    });
+
+    container.innerHTML = html;
 }
 
 // Автораспрямление для textarea

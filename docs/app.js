@@ -67,30 +67,18 @@ function submitApplication() {
         console.log('Ответ JSON:', result);
         if (result.success) {
             const reportId = result.report_id;
-            console.log('✅ Заявка создана, report_id:', reportId);
-
-            // Загружаем фото, если есть
             const hasPhotos = selectedPhotos.some(photo => photo !== null);
-            console.log('📸 Проверка фото:', {
-                selectedPhotos: selectedPhotos.map((p, i) => p ? `Слот ${i}: ${p.name}` : null),
-                hasPhotos,
-                reportId
-            });
 
             if (hasPhotos && reportId) {
-                console.log('📤 Начинаю загрузку фотографий для заявки', reportId);
                 uploadPhotos(reportId).then(uploadedKeys => {
-                    console.log('✅ Фото загружены:', uploadedKeys);
-                    alert(`✅ Заявка успешно отправлена! Загружено фото: ${uploadedKeys.length}`);
+                    alert(`Заявка отправлена! Загружено фото: ${uploadedKeys.length}`);
                     resetForm();
-                }).catch(uploadError => {
-                    console.error('❌ Ошибка загрузки фото:', uploadError);
-                    alert('⚠️ Заявка отправлена, но возникла ошибка при загрузке фото');
+                }).catch(() => {
+                    alert('Заявка отправлена, но фото не загружены');
                     resetForm();
                 });
             } else {
-                console.log('ℹ️ Фото не выбраны или нет report_id');
-                alert('✅ Заявка успешно отправлена!');
+                alert('Заявка успешно отправлена!');
                 resetForm();
             }
         } else {
@@ -259,76 +247,37 @@ function handlePhotoSelected(index) {
     console.log(`Фото ${index} выбрано:`, file.name);
 }
 
-// Загрузка фото на сервер (через base64 вместо FormData для совместимости с Telegram WebView)
 async function uploadPhotos(reportId) {
-    console.log('📸 uploadPhotos вызван с reportId:', reportId);
     const uploadedKeys = [];
 
     for (let i = 0; i < selectedPhotos.length; i++) {
         const file = selectedPhotos[i];
         if (!file) continue;
 
-        console.log(`📤 Загружаю фото ${i}:`, file.name, file.size, 'bytes');
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('report_id', reportId);
 
-        // Конвертируем файл в base64
-        const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(',')[1]); // Убираем "data:image/...;base64,"
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
+            const response = await fetch(`${API_URL}/api/upload/photo`, {
+                method: 'POST',
+                body: formData
+            });
 
-        const payload = {
-            report_id: reportId,
-            filename: file.name,
-            content_type: file.type,
-            data: base64
-        };
-
-        console.log(`📦 Подготовлен payload: filename=${file.name}, size=${base64.length} chars`);
-
-        // Попытки с ретраем (2 попытки)
-        let success = false;
-        for (let attempt = 1; attempt <= 2; attempt++) {
-            try {
-                console.log(`🌐 Попытка ${attempt}/2: POST на ${API_URL}/api/upload/photo/base64`);
-                const response = await fetch(`${API_URL}/api/upload/photo/base64`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload),
-                    mode: 'cors'
-                });
-
-                console.log(`📥 Ответ получен, status: ${response.status}`);
-                const result = await response.json();
-                console.log(`📄 Ответ JSON:`, result);
-
-                if (result.success) {
-                    uploadedKeys.push(result.s3_key);
-                    console.log(`✅ Фото ${i} загружено:`, result.s3_key);
-                    success = true;
-                    break;
-                } else {
-                    console.error(`❌ Сервер вернул ошибку:`, result.error);
-                    if (attempt === 2) {
-                        console.error(`Фото ${i} не загружено после 2 попыток`);
-                    }
-                }
-            } catch (error) {
-                console.error(`❌ Ошибка сети (попытка ${attempt}):`, error);
-                if (attempt < 2) {
-                    console.log('Жду 800ms перед повтором...');
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                } else {
-                    console.error(`Фото ${i} не загружено: сетевая ошибка`);
-                }
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
+
+            const result = await response.json();
+            
+            if (result.success && result.s3_key) {
+                uploadedKeys.push(result.s3_key);
+            }
+        } catch (error) {
+            console.error('Photo upload error:', error);
         }
     }
 
-    console.log('✅ Все фото обработаны, загружено:', uploadedKeys.length);
     return uploadedKeys;
 }
 

@@ -227,173 +227,43 @@ def moderate():
 
 @admin_bp.route('/api/upload/photo', methods=['POST'])
 def upload_photo():
-    """Upload photo to MinIO and attach to report."""
-    current_app.logger.info("🎯 /api/upload/photo called")
-    current_app.logger.info(f"📋 Headers: {dict(request.headers)}")
-    current_app.logger.info(f"📋 Origin: {request.headers.get('Origin', 'NO ORIGIN')}")
-    current_app.logger.info(f"📋 Referer: {request.headers.get('Referer', 'NO REFERER')}")
-    current_app.logger.info(f"📋 Files: {list(request.files.keys())}")
-    current_app.logger.info(f"📋 Form: {dict(request.form)}")
-
+    """Upload photo and save to database."""
     from src.util import upload_file_to_s3
     from src.models import ReportPhoto
     import uuid
 
     if 'file' not in request.files:
-        current_app.logger.error("❌ No 'file' in request.files")
         return jsonify(success=False, error='No file provided'), 400
 
     file = request.files['file']
     report_id = request.form.get('report_id')
 
     if not report_id:
-        current_app.logger.error("❌ No 'report_id' in request.form")
         return jsonify(success=False, error='report_id is required'), 400
 
-    if file.filename == '':
-        current_app.logger.error("❌ Empty filename")
+    if not file.filename:
         return jsonify(success=False, error='Empty filename'), 400
 
-    current_app.logger.info(f"📸 Photo upload started: report_id={report_id}, filename={file.filename}")
-
     try:
-        # Генерируем уникальное имя файла
+        file_data = file.read()
         ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
         s3_key = f"photos/{report_id}/{uuid.uuid4()}.{ext}"
-
-        # Читаем файл
-        file_data = file.read()
         content_type = file.content_type or 'image/jpeg'
-        current_app.logger.info(f"📸 File read: size={len(file_data)} bytes, type={content_type}")
 
-        # Пытаемся загрузить в MinIO (опционально)
-        uploaded_key = upload_file_to_s3(file_data, s3_key, content_type)
+        upload_file_to_s3(file_data, s3_key, content_type)
 
-        # Если MinIO не настроен, используем локальный путь или base64
-        if not uploaded_key:
-            current_app.logger.warning("⚠️ MinIO not configured, storing s3_key only")
-            uploaded_key = s3_key  # Сохраняем путь, даже если файл не загружен
-        else:
-            current_app.logger.info(f"✅ Uploaded to MinIO: {uploaded_key}")
+        with get_db_session() as session:
+            photo = ReportPhoto(
+                report_id=int(report_id),
+                s3_key=s3_key
+            )
+            session.add(photo)
+            session.flush()
 
-        # Сохраняем запись в БД или Singleton
-        db_url = os.environ.get('DATABASE_URL')
-        current_app.logger.info(f"💾 DATABASE_URL present: {bool(db_url)}")
-
-        if db_url:
-            try:
-                with get_db_session() as session:
-                    photo = ReportPhoto(
-                        report_id=int(report_id),
-                        s3_key=uploaded_key
-                    )
-                    session.add(photo)
-                    session.flush()  # Получаем photo_id
-                    photo_id = photo.photo_id
-                    current_app.logger.info(f"✅ Photo saved to DB: photo_id={photo_id}, s3_key={uploaded_key}")
-                    # Context manager делает commit при выходе
-                current_app.logger.info("✅ Transaction committed successfully")
-            except Exception as db_error:
-                current_app.logger.error(f"❌ Database error: {db_error}")
-                import traceback
-                current_app.logger.error(traceback.format_exc())
-                raise
-        else:
-            # Сохраняем фото в singleton для режима без БД
-            try:
-                photos_list = singleton.photos.setdefault(int(report_id), [])
-                pid = len(photos_list) + 1
-                photos_list.append({'id': pid, 's3_key': uploaded_key, 'url': uploaded_key})
-            except Exception as e:
-                current_app.logger.error(f"Failed to save photo in singleton: {e}")
-
-        return jsonify(
-            success=True,
-            s3_key=uploaded_key,
-            message='Photo uploaded successfully'
-        )
+        return jsonify(success=True, s3_key=s3_key)
 
     except Exception as e:
-        current_app.logger.error(f"Error uploading photo: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
-
-
-@admin_bp.route('/api/upload/photo/base64', methods=['POST'])
-def upload_photo_base64():
-    """Upload photo from base64-encoded data (for Telegram WebView compatibility)."""
-    current_app.logger.info("🎯 /api/upload/photo/base64 called")
-
-    from src.util import upload_file_to_s3
-    from src.models import ReportPhoto
-    import uuid
-    import base64
-
-    data = request.json
-    if not data:
-        current_app.logger.error("❌ No JSON data")
-        return jsonify(success=False, error='No data provided'), 400
-
-    report_id = data.get('report_id')
-    filename = data.get('filename', 'photo.jpg')
-    content_type = data.get('content_type', 'image/jpeg')
-    base64_data = data.get('data')
-
-    current_app.logger.info(f"📋 report_id={report_id}, filename={filename}, content_type={content_type}")
-
-    if not report_id or not base64_data:
-        current_app.logger.error("❌ Missing report_id or data")
-        return jsonify(success=False, error='report_id and data are required'), 400
-
-    try:
-        # Декодируем base64
-        file_data = base64.b64decode(base64_data)
-        current_app.logger.info(f"📸 Decoded file: size={len(file_data)} bytes")
-
-        # Генерируем s3_key
-        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'jpg'
-        s3_key = f"photos/{report_id}/{uuid.uuid4()}.{ext}"
-
-        # Пытаемся загрузить в MinIO
-        uploaded_key = upload_file_to_s3(file_data, s3_key, content_type)
-
-        if not uploaded_key:
-            current_app.logger.warning("⚠️ MinIO not configured, storing s3_key only")
-            uploaded_key = s3_key
-        else:
-            current_app.logger.info(f"✅ Uploaded to MinIO: {uploaded_key}")
-
-        # Сохраняем в БД
-        db_url = os.environ.get('DATABASE_URL')
-
-        if db_url:
-            with get_db_session() as session:
-                photo = ReportPhoto(
-                    report_id=int(report_id),
-                    s3_key=uploaded_key
-                )
-                session.add(photo)
-                session.flush()
-                photo_id = photo.photo_id
-                current_app.logger.info(f"✅ Photo saved to DB: photo_id={photo_id}, s3_key={uploaded_key}")
-        else:
-            photos_list = singleton.photos.setdefault(int(report_id), [])
-            pid = len(photos_list) + 1
-            photos_list.append({'id': pid, 's3_key': uploaded_key, 'url': uploaded_key})
-
-        return jsonify(
-            success=True,
-            s3_key=uploaded_key,
-            message='Photo uploaded successfully'
-        )
-
-    except Exception as e:
-        current_app.logger.error(f"❌ Error uploading base64 photo: {e}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
-        return jsonify(success=False, error=str(e)), 500
-
 
 
 @admin_bp.route('/api/photos/all', methods=['GET'])

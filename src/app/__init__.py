@@ -12,7 +12,8 @@ def create_app():
          origins=[
              "https://tau-lavender.github.io",
              "http://localhost:8080",
-             "http://0.0.0.0:8080"
+             "http://0.0.0.0:8080",
+             "null"  # Для локальных файлов file://
          ],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],

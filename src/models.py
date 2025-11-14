@@ -53,9 +53,9 @@ class GraffitiReport(Base):
     report_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(
         BigInteger,
-        ForeignKey("users.user_id", ondelete="CASCADE"),
-        nullable=False,
-        comment="Telegram user who submitted the report"
+        ForeignKey("users.user_id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Telegram user who submitted the report (nullable)"
     )
     location = Column(
         Geography(geometry_type="POINT", srid=4326),

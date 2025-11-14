@@ -65,21 +65,21 @@ def apply():
 
     try:
         with get_db_session() as session:
-            # Получаем или создаём пользователя
+            # Получаем или создаём пользователя (если есть telegram_user_id)
             telegram_user_id = data.get('telegram_user_id')
-            if not telegram_user_id:
-                return jsonify(success=False, error='telegram_user_id is required'), 400
+            user = None
 
-            user = session.query(User).filter_by(user_id=telegram_user_id).first()
-            if not user:
-                user = User(
-                    user_id=telegram_user_id,
-                    username=data.get('telegram_username'),
-                    first_name=data.get('telegram_first_name'),
-                    last_name=data.get('telegram_last_name')
-                )
-                session.add(user)
-                session.flush()  # Получаем user_id
+            if telegram_user_id:
+                user = session.query(User).filter_by(user_id=telegram_user_id).first()
+                if not user:
+                    user = User(
+                        user_id=telegram_user_id,
+                        username=data.get('telegram_username'),
+                        first_name=data.get('telegram_first_name'),
+                        last_name=data.get('telegram_last_name')
+                    )
+                    session.add(user)
+                    session.flush()  # Получаем user_id
 
             # Нормализуем адрес через DaData (если адрес не содержит уже ФИАС)
             raw_address = data.get('raw_address')
@@ -100,7 +100,7 @@ def apply():
 
             # Создаём заявку
             report = GraffitiReport(
-                user_id=user.user_id,
+                user_id=user.user_id if user else None,
                 normalized_address=normalized_addr or raw_address or '',
                 fias_id=fias_id,
                 description=data.get('comment') or data.get('description') or '',
@@ -142,7 +142,8 @@ def get_applications():
 
     try:
         with get_db_session() as session:
-            query = session.query(GraffitiReport).join(User)
+            # LEFT JOIN чтобы получить заявки даже без пользователя
+            query = session.query(GraffitiReport).outerjoin(User)
 
             # Если user_id указан, фильтруем заявки только для этого пользователя
             if user_id:
@@ -171,10 +172,10 @@ def get_applications():
                     'location': report.normalized_address or '',
                     'comment': report.description or '',
                     'status': report.status,
-                    'telegram_username': report.user.username,
-                    'telegram_user_id': report.user.user_id,
-                    'telegram_first_name': report.user.first_name,
-                    'telegram_last_name': report.user.last_name,
+                    'telegram_username': report.user.username if report.user else None,
+                    'telegram_user_id': report.user.user_id if report.user else None,
+                    'telegram_first_name': report.user.first_name if report.user else None,
+                    'telegram_last_name': report.user.last_name if report.user else None,
                     'created_at': report.created_at.isoformat(),
                     'photos': photo_urls
                 })
@@ -402,3 +403,61 @@ def get_report_photos(report_id):
     except Exception as e:
         current_app.logger.error(f"Error getting report photos: {e}")
         return jsonify(error=str(e)), 500
+
+
+@admin_bp.route('/api/test/create-photo', methods=['POST'])
+def test_create_photo():
+    """Тестовый эндпоинт для создания фото напрямую в БД"""
+    data = request.json
+    report_id = data.get('report_id')
+    s3_key = data.get('s3_key', f'test/photo_{report_id}_manual.jpg')
+
+    if not report_id:
+        return jsonify(success=False, error='report_id required'), 400
+
+    if not os.environ.get('DATABASE_URL'):
+        return jsonify(success=False, error='Database not configured'), 500
+
+    try:
+        current_app.logger.info(f"🧪 TEST: Creating photo for report_id={report_id}")
+
+        with get_db_session() as session:
+            # Проверяем что заявка существует
+            report = session.query(GraffitiReport).filter_by(report_id=report_id).first()
+            if not report:
+                return jsonify(success=False, error=f'Report {report_id} not found'), 404
+
+            current_app.logger.info(f"🧪 Report found: {report}")
+
+            # Создаём фото
+            photo = ReportPhoto(
+                report_id=report_id,
+                s3_key=s3_key
+            )
+            session.add(photo)
+            session.flush()
+
+            photo_id = photo.photo_id
+            current_app.logger.info(f"🧪 Photo created: photo_id={photo_id}")
+
+        # Проверяем что сохранилось
+        current_app.logger.info("🧪 Checking if photo saved...")
+        with get_db_session() as session:
+            saved = session.query(ReportPhoto).filter_by(photo_id=photo_id).first()
+            if saved:
+                current_app.logger.info(f"✅ Photo verified in DB: {saved}")
+                return jsonify(
+                    success=True,
+                    photo_id=photo_id,
+                    s3_key=s3_key,
+                    message='Test photo created successfully'
+                )
+            else:
+                current_app.logger.error("❌ Photo NOT found after commit!")
+                return jsonify(success=False, error='Photo not found after save'), 500
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Test error: {e}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify(success=False, error=str(e)), 500

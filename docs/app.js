@@ -67,17 +67,29 @@ function submitApplication() {
         console.log('Ответ JSON:', result);
         if (result.success) {
             const reportId = result.report_id;
+            console.log('✅ Заявка создана, report_id:', reportId);
 
             // Загружаем фото, если есть
             const hasPhotos = selectedPhotos.some(photo => photo !== null);
+            console.log('📸 Проверка фото:', {
+                selectedPhotos: selectedPhotos.map((p, i) => p ? `Слот ${i}: ${p.name}` : null),
+                hasPhotos,
+                reportId
+            });
+
             if (hasPhotos && reportId) {
-                console.log('Загружаю фотографии для заявки', reportId);
+                console.log('📤 Начинаю загрузку фотографий для заявки', reportId);
                 uploadPhotos(reportId).then(uploadedKeys => {
-                    console.log('Фото загружены:', uploadedKeys);
+                    console.log('✅ Фото загружены:', uploadedKeys);
                     alert(`Заявка успешно отправлена! Загружено фото: ${uploadedKeys.length}`);
+                    resetForm();
+                }).catch(uploadError => {
+                    console.error('❌ Ошибка загрузки фото:', uploadError);
+                    alert('Заявка отправлена, но возникла ошибка при загрузке фото');
                     resetForm();
                 });
             } else {
+                console.log('ℹ️ Фото не выбраны или нет report_id');
                 alert('Заявка успешно отправлена!');
                 resetForm();
             }
@@ -249,34 +261,43 @@ function handlePhotoSelected(index) {
 
 // Загрузка фото на сервер
 async function uploadPhotos(reportId) {
+    console.log('📸 uploadPhotos вызван с reportId:', reportId);
     const uploadedKeys = [];
 
     for (let i = 0; i < selectedPhotos.length; i++) {
         if (!selectedPhotos[i]) continue;
+
+        console.log(`📤 Загружаю фото ${i}:`, selectedPhotos[i].name, selectedPhotos[i].size, 'bytes');
 
         const formData = new FormData();
         formData.append('file', selectedPhotos[i]);
         formData.append('report_id', reportId);
 
         try {
+            console.log(`🌐 Отправляю POST на ${API_URL}/api/upload/photo`);
             const response = await fetch(`${API_URL}/api/upload/photo`, {
                 method: 'POST',
                 body: formData
             });
 
+            console.log(`📥 Ответ получен, status: ${response.status}`);
             const result = await response.json();
+            console.log(`📄 Ответ JSON:`, result);
 
             if (result.success) {
                 uploadedKeys.push(result.s3_key);
-                console.log(`Фото ${i} загружено:`, result.s3_key);
+                console.log(`✅ Фото ${i} загружено:`, result.s3_key);
             } else {
-                console.error(`Ошибка загрузки фото ${i}:`, result.error);
+                console.error(`❌ Ошибка загрузки фото ${i}:`, result.error);
+                alert(`Ошибка загрузки фото ${i + 1}: ${result.error}`);
             }
         } catch (error) {
-            console.error(`Ошибка загрузки фото ${i}:`, error);
+            console.error(`❌ Ошибка сети при загрузке фото ${i}:`, error);
+            alert(`Ошибка сети при загрузке фото ${i + 1}`);
         }
     }
 
+    console.log('✅ Все фото обработаны, загружено:', uploadedKeys.length);
     return uploadedKeys;
 }
 

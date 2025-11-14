@@ -38,6 +38,154 @@
 body {
     padding: 16px;
     margin: 0 auto;
+    background-color: var(--bg-color);
+    min-height: 100vh;
+}
+
+#app-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.app-card {
+    background-color: var(--white-color);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.app-id {
+    font-weight: 600;
+    color: var(--main-color);
+}
+
+.status-chip {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.status-chip.approved {
+    color: #1f9a42;
+    background-color: rgba(31, 154, 66, 0.15);
+}
+
+.status-chip.declined {
+    color: #d62828;
+    background-color: rgba(214, 40, 40, 0.15);
+}
+
+.status-chip.pending {
+    color: #b58100;
+    background-color: rgba(181, 129, 0, 0.15);
+}
+
+.app-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.app-meta div {
+    font-size: 13px;
+    color: var(--black-color);
+}
+
+.app-meta .label {
+    color: var(--inactive-color);
+    font-size: 11px;
+    display: block;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.photo-details {
+    margin-top: 12px;
+}
+
+.photo-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--main-color);
+}
+
+.photo-grid {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.photo-grid img {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: var(--bg-color);
+}
+
+.photo-placeholder {
+    width: 140px;
+    height: 140px;
+    border-radius: 12px;
+    border: 1px dashed var(--inactive-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    color: var(--inactive-color);
+}
+
+.no-photos {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--inactive-color);
+}
+
+.app-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+}
+
+.app-actions button {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.app-actions button:first-child {
+    background-color: var(--main-color);
+    color: var(--white-color);
+}
+
+.app-actions button:last-child {
+    background-color: var(--error-status-color);
+    color: var(--white-color);
 }
 
 /*===============Password form===============*/
@@ -102,4 +250,3 @@ body {
     color: var(--white-color);
     text-align: center;
 }
-

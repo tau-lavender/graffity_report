@@ -25,6 +25,85 @@
 
     <script src="config.js"></script>
     <script>
+        const STATUS_TEXTS = {
+            approved: 'Одобрено',
+            declined: 'Отклонено',
+            pending: 'Ожидает'
+        };
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatDate(value) {
+            if (!value) return '—';
+            try {
+                return new Date(value).toLocaleString('ru-RU');
+            } catch (e) {
+                return value;
+            }
+        }
+
+        function renderPhotosSection(photos, reportId) {
+            const list = Array.isArray(photos) ? photos : [];
+            const count = list.length;
+
+            const content = count === 0
+                ? '<div class="no-photos">Фото пока не загружены</div>'
+                : `<div class="photo-grid">${list.map(photo => {
+                    const safeKey = escapeHtml(photo.s3_key || `photo-${photo.id || ''}`);
+                    if (photo.url) {
+                        const safeUrl = escapeHtml(photo.url);
+                        return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer"><img src="${safeUrl}" alt="Фото заявки ${escapeHtml(reportId)}"></a>`;
+                    }
+                    return `<div class="photo-placeholder">${safeKey}</div>`;
+                }).join('')}</div>`;
+
+            return `<details class="photo-details">
+                <summary>Фото (${count})</summary>
+                ${content}
+            </details>`;
+        }
+
+        function renderAppCard(app) {
+            const reportId = app.id || app.report_id || 0;
+            const numericId = Number(reportId) || 0;
+            const location = escapeHtml(app.location || app.address || 'Адрес не указан');
+            const comment = escapeHtml(app.comment || '-');
+            const usernameBlock = app.telegram_username
+                ? `@${escapeHtml(app.telegram_username)}`
+                : '<i>не указан</i>';
+            const statusKey = app.status || 'pending';
+            const created = formatDate(app.created_at);
+
+            return `<li class="app-card">
+                <div class="app-header">
+                    <div class="app-id">#${escapeHtml(reportId)}</div>
+                    <span class="status-chip ${statusKey}">${STATUS_TEXTS[statusKey] || STATUS_TEXTS.pending}</span>
+                </div>
+                <div class="title-text">${location}</div>
+                <div class="main-text">${comment}</div>
+                <div class="app-meta">
+                    <div><span class="label">Пользователь</span>${usernameBlock}</div>
+                    <div><span class="label">Telegram ID</span>${app.telegram_user_id ? escapeHtml(app.telegram_user_id) : '—'}</div>
+                    <div><span class="label">Создано</span>${escapeHtml(created)}</div>
+                </div>
+                ${renderPhotosSection(app.photos, reportId)}
+                <div class="app-actions">
+                    <button onclick="moderate(${numericId}, 'approved')">Одобрить</button>
+                    <button onclick="moderate(${numericId}, 'declined')">Отклонить</button>
+                </div>
+            </li>`;
+        }
+
         let admin_pw = '';
         document.getElementById('admin-login').onsubmit = async function(e) {
             e.preventDefault();
@@ -38,19 +117,10 @@
         async function getApps() {
             let res = await fetch(`${API_URL}/api/applications`);
             let apps = await res.json();
-            let ui = '';
-            apps.forEach((app) => {
-                ui += `<li>
-                    #${app.id} <b>${app.location}</b> (${app.comment}) [${app.status}]<br>
-                    <b>Telegram username:</b> ${app.telegram_username ? '@' + app.telegram_username : '<i>не указан</i>'}
-                    <br>
-                    <b>Created:</b> ${new Date(app.created_at).toLocaleString('ru-RU')}
-                    <br>
-                    <button onclick="moderate(${app.id}, 'approved')">Одобрить</button>
-                    <button onclick="moderate(${app.id}, 'declined')">Отклонить</button>
-                </li>`;
-            });
-            document.getElementById('app-list').innerHTML = ui;
+            const listHtml = apps.length
+                ? apps.map(renderAppCard).join('')
+                : '<li class="app-card"><div class="title-text">Заявки отсутствуют</div></li>';
+            document.getElementById('app-list').innerHTML = listHtml;
         }
 
         async function moderate(idx, status) {

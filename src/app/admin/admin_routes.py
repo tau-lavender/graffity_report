@@ -1,26 +1,25 @@
-from flask import Blueprint, request, jsonify, current_app, send_file # type: ignore
-from geoalchemy2.shape import to_shape, from_shape # type: ignore
+from flask import Blueprint, request, jsonify, current_app, send_file
+from geoalchemy2.shape import to_shape, from_shape
 from src.models import User, GraffitiReport, ReportPhoto
-from src.util import get_db_session, get_file_from_s3
+from src.util import get_db_session, get_file_from_s3, upload_file_to_s3, get_file_url
 from src.singleton import SingletonClass
 from src.dadata_helper import normalize_address
-from decouple import config # type: ignore
-from shapely.geometry import Point # type: ignore
+from decouple import config
+from shapely.geometry import Point
 import os
 import io
+import uuid
 
 admin_bp = Blueprint('admin', __name__, template_folder='../templates')
-singleton = SingletonClass()  # Fallback to in-memory if DB not available
+singleton = SingletonClass()
 
 @admin_bp.route('/api/debug', methods=['GET'])
 def debug():
-    """Debug endpoint to check database state"""
-    # Check if DATABASE_URL is set
     if not os.environ.get('DATABASE_URL'):
         return jsonify({
             'total_applications': len(singleton.applications),
             'applications': singleton.applications,
-            'database': 'Singleton (in-memory)'
+            'database': 'Singleton'
         })
 
     try:
@@ -31,10 +30,10 @@ def debug():
             return jsonify({
                 'total_applications': total_reports,
                 'total_users': total_users,
-                'database': 'PostgreSQL + PostGIS'
+                'database': 'PostgreSQL'
             })
     except Exception as e:
-        current_app.logger.error(f"DB error in /api/debug: {e}")
+        current_app.logger.error(f"DB error: {e}")
         return jsonify(error=str(e)), 500
 
 @admin_bp.route('/api/apply', methods=['POST'])
@@ -43,9 +42,7 @@ def apply():
     if not data:
         return jsonify(success=False, error='No data provided'), 400
 
-    # Fallback to Singleton if no DATABASE_URL
     if not os.environ.get('DATABASE_URL'):
-        # Создаём совместимую с БД структуру и возвращаем report_id
         report_id = singleton.next_report_id()
         item = {
             'id': report_id,
@@ -60,13 +57,11 @@ def apply():
             'created_at': None
         }
         singleton.applications.append(item)
-        # Инициализируем список фото для этой заявки
         singleton.photos[report_id] = []
-        return jsonify(success=True, message='Application added successfully', report_id=report_id)
+        return jsonify(success=True, message='Application added', report_id=report_id)
 
     try:
         with get_db_session() as session:
-            # Получаем или создаём пользователя (если есть telegram_user_id)
             telegram_user_id = data.get('telegram_user_id')
             user = None
 
@@ -80,26 +75,22 @@ def apply():
                         last_name=data.get('telegram_last_name')
                     )
                     session.add(user)
-                    session.flush()  # Получаем user_id
+                    session.flush()
 
-            # Нормализуем адрес через DaData (если адрес не содержит уже ФИАС)
             raw_address = data.get('raw_address')
-            fias_id = data.get('fias_id')  # Может придти с фронта
+            fias_id = data.get('fias_id')
 
             if not fias_id and raw_address:
-                # Нормализуем через DaData API
                 normalized_data = normalize_address(raw_address)
                 normalized_addr = normalized_data.get('normalized_address')
                 fias_id = normalized_data.get('fias_id')
                 lat = normalized_data.get('latitude')
                 lon = normalized_data.get('longitude')
             else:
-                # Используем данные с фронта
                 normalized_addr = raw_address
                 lat = data.get('latitude')
                 lon = data.get('longitude')
 
-            # Создаём заявку
             report = GraffitiReport(
                 user_id=user.user_id if user else None,
                 normalized_address=normalized_addr or raw_address or '',
@@ -108,29 +99,23 @@ def apply():
                 status='pending'
             )
 
-            # Если есть координаты, добавляем location (PostGIS POINT)
             if lat is not None and lon is not None:
                 point = Point(float(lon), float(lat))
                 report.location = from_shape(point, srid=4326)
 
             session.add(report)
-            session.flush()  # Ensure report_id is assigned before returning
-            # Context manager автоматически делает commit
+            session.flush()
 
-            return jsonify(success=True, message='Application added successfully', report_id=report.report_id)
+            return jsonify(success=True, message='Application added', report_id=report.report_id)
     except Exception as e:
         current_app.logger.error(f"Error in /api/apply: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
 
 @admin_bp.route('/api/applications', methods=['GET'])
 def get_applications():
     user_id = request.args.get('telegram_user_id', None)
 
-    # Fallback to Singleton if no DATABASE_URL
     if not os.environ.get('DATABASE_URL'):
-        # Добавляем photos для каждой заявки из singleton.photos
         apps = []
         for app in singleton.applications:
             if user_id and app.get('telegram_user_id') != int(user_id):
@@ -144,10 +129,8 @@ def get_applications():
 
     try:
         with get_db_session() as session:
-            # LEFT JOIN чтобы получить заявки даже без пользователя
             query = session.query(GraffitiReport).outerjoin(User)
 
-            # Если user_id указан, фильтруем заявки только для этого пользователя
             if user_id:
                 query = query.filter(User.user_id == int(user_id))
 
@@ -155,36 +138,28 @@ def get_applications():
 
             result = []
             for report in reports:
-                # Получаем фото для этой заявки
                 photos = session.query(ReportPhoto).filter_by(report_id=report.report_id).all()
                 photo_urls = []
                 for photo in photos:
-                    # Используем публичный download endpoint вместо presigned URL
                     photo_urls.append({
                         'id': photo.photo_id,
                         'url': f'/api/photo/download/{photo.photo_id}',
                         's3_key': photo.s3_key
                     })
 
-                # Извлекаем координаты из Geography колонки
                 latitude = None
                 longitude = None
                 if report.location is not None:
                     try:
-                        # Преобразуем Geography в Shapely геометрию
                         shape = to_shape(report.location)
                         longitude = shape.x
                         latitude = shape.y
                     except Exception as e:
-                        current_app.logger.warning(f"Failed to extract coordinates for report {report.report_id}: {e}")
+                        current_app.logger.warning(f"Failed to extract coordinates: {e}")
 
                 result.append({
-                    'id': report.report_id,
                     'report_id': report.report_id,
-                    'location': report.normalized_address or '',
                     'normalized_address': report.normalized_address or '',
-                    'raw_address': report.normalized_address or '',
-                    'comment': report.description or '',
                     'description': report.description or '',
                     'status': report.status,
                     'telegram_username': report.user.username if report.user else None,
@@ -218,7 +193,6 @@ def moderate():
     if password != admin_password:
         return jsonify(success=False, error='Invalid password'), 403
 
-    # Fallback to Singleton if no DATABASE_URL
     if not os.environ.get('DATABASE_URL'):
         if 0 <= idx < len(singleton.applications):
             singleton.applications[idx]['status'] = new_status
@@ -228,13 +202,11 @@ def moderate():
 
     try:
         with get_db_session() as session:
-            # idx is actually report_id from frontend
             report = session.query(GraffitiReport).filter_by(report_id=idx).first()
             if not report:
                 return jsonify(success=False, error='Report not found'), 404
 
             report.status = new_status
-            # Context manager автоматически делает commit
 
             return jsonify(success=True, message='Status updated')
     except Exception as e:
@@ -244,11 +216,6 @@ def moderate():
 
 @admin_bp.route('/api/upload/photo', methods=['POST'])
 def upload_photo():
-    """Upload photo and save to database."""
-    from src.util import upload_file_to_s3
-    from src.models import ReportPhoto
-    import uuid
-
     if 'file' not in request.files:
         return jsonify(success=False, error='No file provided'), 400
 
@@ -285,11 +252,7 @@ def upload_photo():
 
 @admin_bp.route('/api/photos/all', methods=['GET'])
 def get_all_photos():
-    """Get all photos from database with report info."""
-    from src.models import ReportPhoto
-
     if not os.environ.get('DATABASE_URL'):
-        # Singleton mode
         result = []
         for report_id, photos in singleton.photos.items():
             for photo in photos:
@@ -322,9 +285,6 @@ def get_all_photos():
 
 @admin_bp.route('/api/photo/<int:photo_id>', methods=['GET'])
 def get_photo_url(photo_id):
-    """Get presigned URL for photo download."""
-    from src.util import get_file_url
-
     if not os.environ.get('DATABASE_URL'):
         return jsonify(error='Database not configured'), 500
 
@@ -349,8 +309,6 @@ def get_photo_url(photo_id):
 
 @admin_bp.route('/api/photo/download/<int:photo_id>', methods=['GET'])
 def download_photo(photo_id):
-    """Download photo file directly from MinIO."""
-
     if not os.environ.get('DATABASE_URL'):
         return jsonify(error='Database not configured'), 500
 
@@ -366,7 +324,6 @@ def download_photo(photo_id):
             if not file_bytes:
                 return jsonify(error='Failed to download file from storage'), 500
 
-            # Определяем MIME-тип из расширения
             ext = photo.s3_key.rsplit('.', 1)[-1].lower() if '.' in photo.s3_key else 'jpg'
             mime_types = {
                 'jpg': 'image/jpeg',
@@ -391,9 +348,6 @@ def download_photo(photo_id):
 
 @admin_bp.route('/api/report/<int:report_id>/photos', methods=['GET'])
 def get_report_photos(report_id):
-    """Get all photo URLs for a report."""
-    from src.util import get_file_url
-
     if not os.environ.get('DATABASE_URL'):
         return jsonify(error='Database not configured'), 500
 
@@ -417,61 +371,3 @@ def get_report_photos(report_id):
     except Exception as e:
         current_app.logger.error(f"Error getting report photos: {e}")
         return jsonify(error=str(e)), 500
-
-
-@admin_bp.route('/api/test/create-photo', methods=['POST'])
-def test_create_photo():
-    """Тестовый эндпоинт для создания фото напрямую в БД"""
-    data = request.json
-    report_id = data.get('report_id')
-    s3_key = data.get('s3_key', f'test/photo_{report_id}_manual.jpg')
-
-    if not report_id:
-        return jsonify(success=False, error='report_id required'), 400
-
-    if not os.environ.get('DATABASE_URL'):
-        return jsonify(success=False, error='Database not configured'), 500
-
-    try:
-        current_app.logger.info(f"🧪 TEST: Creating photo for report_id={report_id}")
-
-        with get_db_session() as session:
-            # Проверяем что заявка существует
-            report = session.query(GraffitiReport).filter_by(report_id=report_id).first()
-            if not report:
-                return jsonify(success=False, error=f'Report {report_id} not found'), 404
-
-            current_app.logger.info(f"🧪 Report found: {report}")
-
-            # Создаём фото
-            photo = ReportPhoto(
-                report_id=report_id,
-                s3_key=s3_key
-            )
-            session.add(photo)
-            session.flush()
-
-            photo_id = photo.photo_id
-            current_app.logger.info(f"🧪 Photo created: photo_id={photo_id}")
-
-        # Проверяем что сохранилось
-        current_app.logger.info("🧪 Checking if photo saved...")
-        with get_db_session() as session:
-            saved = session.query(ReportPhoto).filter_by(photo_id=photo_id).first()
-            if saved:
-                current_app.logger.info(f"✅ Photo verified in DB: {saved}")
-                return jsonify(
-                    success=True,
-                    photo_id=photo_id,
-                    s3_key=s3_key,
-                    message='Test photo created successfully'
-                )
-            else:
-                current_app.logger.error("❌ Photo NOT found after commit!")
-                return jsonify(success=False, error='Photo not found after save'), 500
-
-    except Exception as e:
-        current_app.logger.error(f"❌ Test error: {e}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
-        return jsonify(success=False, error=str(e)), 500

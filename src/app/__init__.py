@@ -1,58 +1,46 @@
-from flask import Flask, jsonify, request  # type: ignore
-from sqlalchemy import text  # type: ignore
-from flask_cors import CORS  # type: ignore
+from flask import Flask, jsonify
+from sqlalchemy import text, inspect
+from flask_cors import CORS
 from src.app.admin import blueprints
+from src.util import setup_database, init_minio, get_s3_client
+from src.models import Base
+import os
 
 
 def create_app():
     app = Flask(__name__)
 
-    # Configure CORS for ALL routes (not just /api/*)
     CORS(app,
-         origins="*",  # Разрешаем все origins для тестирования
+         origins="*",
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],
-         supports_credentials=False)  # Нельзя использовать credentials с origins="*"
+         supports_credentials=False)
 
-    # Initialize database (if DATABASE_URL is set)
     try:
-        from src.util import setup_database
         setup_database(app)
     except Exception as e:
         app.logger.warning(f"Database setup skipped: {e}")
 
-    # Initialize MinIO storage
     try:
-        from src.util import init_minio
         with app.app_context():
             init_minio()
     except Exception as e:
         app.logger.warning(f"MinIO setup skipped: {e}")
 
-    # Register all blueprints
     for blueprint in blueprints:
         app.register_blueprint(blueprint)
 
-    # Root endpoint for quick check
     @app.route('/', methods=['GET'])
     def root():
         return jsonify({
             'status': 'running',
-            'service': 'GraffitiReport API',
-            'endpoints': {
-                'health': '/health',
-                'applications': '/api/applications',
-                'apply': '/api/apply',
-                'moderate': '/api/applications/moderate'
-            }
+            'service': 'GraffitiReport API'
         }), 200
 
-    # Simple health endpoint (useful for platform checks)
     @app.route('/health', methods=['GET'])
     def health():
         return jsonify(status='ok'), 200
 
-    # Database health endpoint (verifies connection and PostGIS availability)
     @app.route('/api/db/health', methods=['GET'])
     def db_health():
         engine = app.config.get("DB_ENGINE")
@@ -71,12 +59,8 @@ def create_app():
         except Exception as e:
             return jsonify(ok=False, error=str(e)), 200
 
-    # MinIO/S3 storage health endpoint
     @app.route('/api/storage/health', methods=['GET'])
     def storage_health():
-        import os
-        from src.util import get_s3_client
-
         endpoint = os.environ.get('MINIO_ENDPOINT')
         if not endpoint:
             return jsonify(ok=False, error="MINIO_ENDPOINT not set"), 200
@@ -93,31 +77,23 @@ def create_app():
                 ok=True,
                 endpoint=endpoint,
                 bucket=bucket,
-                bucket_exists=bucket in buckets,
-                all_buckets=buckets
+                bucket_exists=bucket in buckets
             ), 200
         except Exception as e:
             return jsonify(ok=False, error=str(e)), 200
 
-    # Database schema check and init endpoint
     @app.route('/api/db/init', methods=['POST'])
     def init_db_tables():
-        """Create all tables if they don't exist. Use with caution."""
         engine = app.config.get("DB_ENGINE")
         if not engine:
             return jsonify(ok=False, error="DATABASE_URL is not set"), 400
 
         try:
-            from src.models import Base
-            from sqlalchemy import inspect
-
             inspector = inspect(engine)
             existing_tables = inspector.get_table_names()
 
-            # Create all tables
             Base.metadata.create_all(engine)
 
-            # Check what was created
             new_inspector = inspect(engine)
             new_tables = new_inspector.get_table_names()
 
@@ -129,27 +105,6 @@ def create_app():
                 created=list(set(new_tables) - set(existing_tables))
             ), 200
         except Exception as e:
-            import traceback
-            return jsonify(
-                ok=False,
-                error=str(e),
-                traceback=traceback.format_exc()
-            ), 500
-
-    # Basic request logging to help diagnose 502/timeouts in production
-    @app.before_request
-    def _log_request():
-        try:
-            app.logger.info(f"REQ {request.method} {request.path} headers={dict(request.headers)}")
-        except Exception:
-            pass
-
-    @app.after_request
-    def _log_response(response):
-        try:
-            app.logger.info(f"RES {request.method} {request.path} status={response.status_code}")
-        except Exception:
-            pass
-        return response
+            return jsonify(ok=False, error=str(e)), 500
 
     return app

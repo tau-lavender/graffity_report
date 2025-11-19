@@ -13,6 +13,20 @@ import uuid
 admin_bp = Blueprint('admin', __name__, template_folder='../templates')
 singleton = SingletonClass()
 
+@admin_bp.route('/api/admin/verify', methods=['POST'])
+def verify_password():
+    data = request.json
+    if not data:
+        return jsonify(success=False, error='No data provided'), 400
+
+    password_hash = data.get('password_hash')
+    admin_password_hash = config('ADMIN_PASSWORD_HASH')
+
+    if password_hash != admin_password_hash:
+        return jsonify(success=False, error='Invalid password'), 403
+
+    return jsonify(success=True)
+
 @admin_bp.route('/api/debug', methods=['GET'])
 def debug():
     if not os.environ.get('DATABASE_URL'):

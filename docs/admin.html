@@ -115,11 +115,27 @@
         let admin_pw = '';
         document.getElementById('admin-login').onsubmit = async function(e) {
             e.preventDefault();
-            admin_pw = sha512(document.getElementById('admin_pw').value);
+            const passwordInput = document.getElementById('admin_pw').value;
+            admin_pw = await sha512(passwordInput);
 
-            document.querySelector('.login-overlay').style.display = 'none';
+            try {
+                const response = await fetch(`${API_URL}/api/admin/verify`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({password_hash: admin_pw})
+                });
 
-            getApps();
+                if (!response.ok) {
+                    alert('Неверный пароль');
+                    return;
+                }
+
+                document.querySelector('.login-overlay').style.display = 'none';
+                getApps();
+            } catch (error) {
+                console.error('Error verifying password:', error);
+                alert('Ошибка проверки пароля');
+            }
         };
 
         async function getApps() {

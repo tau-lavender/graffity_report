@@ -213,33 +213,33 @@ def moderate():
     new_status = data.get('status')
     password = data.get('admin_password')
 
-    admin_password = config('ADMIN_PASSWORD', default='admin123')
+    admin_password = config('ADMIN_PASSWORD')
 
     if password != admin_password:
         return jsonify(success=False, error='Invalid password'), 403
+    else:
+        # Fallback to Singleton if no DATABASE_URL
+        if not os.environ.get('DATABASE_URL'):
+            if 0 <= idx < len(singleton.applications):
+                singleton.applications[idx]['status'] = new_status
+                return jsonify(success=True, message='Status updated')
+            else:
+                return jsonify(success=False, error='Invalid index'), 400
 
-    # Fallback to Singleton if no DATABASE_URL
-    if not os.environ.get('DATABASE_URL'):
-        if 0 <= idx < len(singleton.applications):
-            singleton.applications[idx]['status'] = new_status
-            return jsonify(success=True, message='Status updated')
-        else:
-            return jsonify(success=False, error='Invalid index'), 400
+        try:
+            with get_db_session() as session:
+                # idx is actually report_id from frontend
+                report = session.query(GraffitiReport).filter_by(report_id=idx).first()
+                if not report:
+                    return jsonify(success=False, error='Report not found'), 404
 
-    try:
-        with get_db_session() as session:
-            # idx is actually report_id from frontend
-            report = session.query(GraffitiReport).filter_by(report_id=idx).first()
-            if not report:
-                return jsonify(success=False, error='Report not found'), 404
+                report.status = new_status
+                # Context manager автоматически делает commit
 
-            report.status = new_status
-            # Context manager автоматически делает commit
-
-            return jsonify(success=True, message='Status updated')
-    except Exception as e:
-        current_app.logger.error(f"Error in /api/applications/moderate: {e}")
-        return jsonify(success=False, error=str(e)), 500
+                return jsonify(success=True, message='Status updated')
+        except Exception as e:
+            current_app.logger.error(f"Error in /api/applications/moderate: {e}")
+            return jsonify(success=False, error=str(e)), 500
 
 
 @admin_bp.route('/api/upload/photo', methods=['POST'])

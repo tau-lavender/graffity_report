@@ -5,7 +5,7 @@ from src.util import get_db_session, get_file_from_s3, upload_file_to_s3, get_fi
 from src.singleton import SingletonClass
 from src.dadata_helper import normalize_address
 from decouple import config
-from shapely.geometry import Point
+from shapely.geometry import Point # type: ignore
 import os
 import io
 import uuid

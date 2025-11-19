@@ -25,6 +25,11 @@
 
     <script src="config.js"></script>
     <script>
+        function sha512(str) {
+            return crypto.subtle.digest("SHA-512", new TextEncoder("utf-8").encode(str)).then(buf => {
+                return Array.prototype.map.call(new Uint8Array(buf), x=>(('00'+x.toString(16)).slice(-2))).join('');
+            });
+        }
         const STATUS_TEXTS = {
             approved: 'Одобрено',
             declined: 'Отклонено',
@@ -110,7 +115,7 @@
         let admin_pw = '';
         document.getElementById('admin-login').onsubmit = async function(e) {
             e.preventDefault();
-            admin_pw = document.getElementById('admin_pw').value;
+            admin_pw = sha512(document.getElementById('admin_pw').value);
 
             document.querySelector('.login-overlay').style.display = 'none';
 

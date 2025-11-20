@@ -168,20 +168,27 @@ function createAppCard(app) {
     // Создаем галерею фото, если есть
     let photoGallery = '';
     if (app.photos && app.photos.length > 0) {
-        const photoItems = app.photos.map(photo =>
-            `<img src="${photo.url}" class="card-photo" alt="Фото граффити">`
-        ).join('');
+        const photoItems = app.photos.map(photo => {
+            // Формируем полный URL для фото
+            const photoUrl = photo.url.startsWith('http') ? photo.url : `${API_URL}${photo.url}`;
+            return `<img src="${photoUrl}" class="card-photo" alt="Фото граффити">`;
+        }).join('');
         photoGallery = `<div class="card-photos">${photoItems}</div>`;
     }
 
+    // Используем правильные поля из API
+    const address = app.normalized_address || app.location || app.address || 'Адрес не указан';
+    const description = app.description || app.comment || 'Описание отсутствует';
+    const reportId = app.report_id || app.id;
+
     return `
-        <div class="card" data-report-id="${app.id}">
+        <div class="card" data-report-id="${reportId}">
             <div class="adress-slot">
                 <div class="geo-icon"></div>
-                <div class="title-text">${app.location || app.address || '-'}</div>
+                <div class="title-text">${address}</div>
             </div>
             ${photoGallery}
-            <div class="main-text">${app.comment || '-'}</div>
+            <div class="main-text">${description}</div>
             <span class="mini-text status ${app.status || 'pending'}">${status}</span>
         </div>
     `;

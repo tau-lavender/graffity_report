@@ -109,7 +109,7 @@ header {
 .photo-slot {
     flex: 1;
     height: 99px;
-    border: 2px dashed var(--inactive-color);
+    border: 1px dashed var(--inactive-color);
     border-radius: 8px;
 
     display: flex;
@@ -124,24 +124,7 @@ header {
     height: 18px;
     background: url('assets/camera.svg') center no-repeat;
 }
-
-/* Галерея фото в карточках заявок */
-.card-photos {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    max-width: 100%;
-}
-
-.card-photo {
-    max-height: 120px;
-    max-width: 150px;
-    object-fit: cover;
-    border-radius: 8px;
-    flex-shrink: 0;
-}
-
-/*===============card add adress===============*/
+/*===============card add address===============*/
 .adress-input {
     width: 100%;
     border-radius: 8px;
@@ -204,7 +187,26 @@ header {
     color: var(--white-color);
     text-align: center;
 }
-/*===============for card apps===============*/
+/*==============================for card apps================================*/
+
+/*===============photos===============*/
+/* Галерея фото в карточках заявок */
+.card-photos {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.card-photo {
+    max-height: 120px;
+    max-width: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+/*===============address===============*/
 .geo-icon {
     width: 12px;
     height: 15px;
@@ -218,6 +220,7 @@ header {
     align-items: center;
 }
 
+/*===============status===============*/
 .mini-text.status {
     color: var(--white-color);
     padding: 0 10px;
@@ -238,7 +241,7 @@ header {
     background-color: var(--inactive-color);
 }
 
-/* DaData Address Suggestions */
+/*========================DaData Address Suggestions===============================*/
 .address-autocomplete-wrapper {
     position: relative;
     width: 100%;

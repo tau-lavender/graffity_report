@@ -179,30 +179,39 @@ function createAppCard(app) {
 
     const status = STATUS_TEXTS[app.status] || 'Ожидает';
 
-    // Создаем галерею фото, если есть
+    // выбирается первое фото для отображения пользователю, если есть
     let photoGallery = '';
     if (app.photos && app.photos.length > 0) {
-        const photoItems = app.photos.map(photo => {
-            // Формируем полный URL для фото
-            const photoUrl = photo.url.startsWith('http') ? photo.url : `${API_URL}${photo.url}`;
-            return `<img src="${photoUrl}" class="card-photo" alt="Фото граффити">`;
-        }).join('');
-        photoGallery = `<div class="card-photos">${photoItems}</div>`;
+        const firstPhoto = app.photos[0];
+        const photoUrl1 = firstPhoto.url.startsWith('http') ? firstPhoto.url : `${API_URL}${firstPhoto.url}`;
+        photoGallery = `<div class="show-photos" style="background-image: url('${photoUrl1}')"></div>`;
     }
 
     const address = app.normalized_address || app.location || app.address || 'Адрес не указан';
     const description = app.description || app.comment || 'Описание отсутствует';
     const reportId = app.report_id || app.id;
+    const dateCreated = new Date(app.created_at) || "";
+
+    const newDateCreated = dateCreated.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+    });
 
     return `
-        <div class="card" data-report-id="${reportId}">
-            <div class="adress-slot">
-                <div class="geo-icon"></div>
-                <div class="title-text">${address}</div>
-            </div>
+        <div class="">
             ${photoGallery}
-            <div class="main-text">${description}</div>
-            <span class="mini-text status ${app.status || 'pending'}">${status}</span>
+            <div class="card app" data-report-id="${reportId}">
+                <div class="adress-slot">
+                    <div class="geo-icon"></div>
+                    <div class="title-text">${address}</div>
+                </div>
+                <div class="main-text">${description}</div>
+                <div class="slot-date-status">
+                    <div class="mini-text">${newDateCreated}</div>
+                    <span class="mini-text status ${app.status || 'pending'}">${status}</span>
+                </div>
+            </div>
         </div>
     `;
 }

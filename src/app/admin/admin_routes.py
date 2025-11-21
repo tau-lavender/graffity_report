@@ -94,16 +94,20 @@ def apply():
             raw_address = data.get('raw_address')
             fias_id = data.get('fias_id')
 
+            current_app.logger.info(f"Received raw_address: {raw_address}, fias_id: {fias_id}")
+
             if not fias_id and raw_address:
                 normalized_data = normalize_address(raw_address)
                 normalized_addr = normalized_data.get('normalized_address')
                 fias_id = normalized_data.get('fias_id')
                 lat = normalized_data.get('latitude')
                 lon = normalized_data.get('longitude')
+                current_app.logger.info(f"Normalized address: {normalized_addr}")
             else:
                 normalized_addr = raw_address
                 lat = data.get('latitude')
                 lon = data.get('longitude')
+                current_app.logger.info(f"Using raw address as is: {normalized_addr}")
 
             report = GraffitiReport(
                 user_id=user.user_id if user else None,

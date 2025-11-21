@@ -1,3 +1,7 @@
+let telegramUser = null;// Глобальная переменная для хранения данных пользователя Telegram
+let selectedPhotos = [null, null, null]; // Массив для хранения выбранных фото
+
+// Переключение кнопок в header
 function showScreen(screenId, clickedButton) {
     if (!screenId || !clickedButton) return;
     document.querySelector('.screen.active').classList.remove('active');
@@ -5,7 +9,6 @@ function showScreen(screenId, clickedButton) {
     document.querySelector('.header-buttons .button.active').classList.remove('active');
     clickedButton.classList.add('active');
 }
-
 
 // Отправка заявки с адресом, комментарием и данными Telegram
 async function submitApplication() {
@@ -135,17 +138,28 @@ function resetForm() {
 
     // Очищаем фото
     selectedPhotos = [null, null, null];
-    for (let i = 0; i < 3; i++) {
-        const slot = document.getElementById(`photo-slot-${i}`);
-        const input = document.getElementById(`photo-input-${i}`);
-        if (slot) {
-            slot.style.backgroundImage = '';
-            slot.innerHTML = '<div class="photo-icon"></div><div class="mini-text">Добавить</div>';
+    document.querySelectorAll('.photo-slot').forEach(slot => {
+        slot.style.backgroundImage = '';
+        slot.style.border = `1px dashed var(--inactive-color)1`;
+
+        const miniText = slot.querySelector('.mini-text');
+        if (miniText) {
+            miniText.textContent = 'Добавить';
+            miniText.style.backgroundColor = '';
+            miniText.style.padding = '0';
+            miniText.style.borderRadius = '';
         }
+        
+        const photoIcon = slot.querySelector('.photo-icon');
+        if (photoIcon) {
+            photoIcon.style.display = '';
+        }
+        
+        const input = slot.querySelector('input[type="file"]');
         if (input) {
             input.value = '';
         }
-    }
+    });
 
     // Переключаемся на экран заявок
     const homeBtn = document.querySelector('.header-buttons .button:first-child');
@@ -168,20 +182,26 @@ function createAppCard(app) {
     // Создаем галерею фото, если есть
     let photoGallery = '';
     if (app.photos && app.photos.length > 0) {
-        const photoItems = app.photos.map(photo =>
-            `<img src="${photo.url}" class="card-photo" alt="Фото граффити">`
-        ).join('');
+        const photoItems = app.photos.map(photo => {
+            // Формируем полный URL для фото
+            const photoUrl = photo.url.startsWith('http') ? photo.url : `${API_URL}${photo.url}`;
+            return `<img src="${photoUrl}" class="card-photo" alt="Фото граффити">`;
+        }).join('');
         photoGallery = `<div class="card-photos">${photoItems}</div>`;
     }
 
+    const address = app.normalized_address || app.location || app.address || 'Адрес не указан';
+    const description = app.description || app.comment || 'Описание отсутствует';
+    const reportId = app.report_id || app.id;
+
     return `
-        <div class="card" data-report-id="${app.id}">
+        <div class="card" data-report-id="${reportId}">
             <div class="adress-slot">
                 <div class="geo-icon"></div>
-                <div class="title-text">${app.location || app.address || '-'}</div>
+                <div class="title-text">${address}</div>
             </div>
             ${photoGallery}
-            <div class="main-text">${app.comment || '-'}</div>
+            <div class="main-text">${description}</div>
             <span class="mini-text status ${app.status || 'pending'}">${status}</span>
         </div>
     `;
@@ -215,65 +235,6 @@ function loadApplications() {
             container.innerHTML = html;
         })
         .catch(error => console.error('Ошибка загрузки:', error));
-}
-
-// Автораспрямление для textarea
-document.querySelectorAll('.auto-expand').forEach(function(textarea) {
-    textarea.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-    });
-});
-
-// Глобальная переменная для хранения данных пользователя Telegram
-let telegramUser = null;
-
-// Массив для хранения выбранных фото
-let selectedPhotos = [null, null, null];
-
-// Триггер выбора фото
-function triggerPhotoUpload(index) {
-    const input = document.getElementById(`photo-input-${index}`);
-    if (input) {
-        input.click();
-    }
-}
-
-// Обработка выбранного фото
-function handlePhotoSelected(index) {
-    const input = document.getElementById(`photo-input-${index}`);
-    const slot = document.getElementById(`photo-slot-${index}`);
-
-    if (!input || !input.files || !input.files[0]) return;
-
-    const file = input.files[0];
-
-    // Проверка размера (макс 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-        alert('Файл слишком большой. Максимум 10 МБ');
-        return;
-    }
-
-    // Проверка типа
-    if (!file.type.startsWith('image/')) {
-        alert('Пожалуйста, выберите изображение');
-        return;
-    }
-
-    // Сохраняем файл
-    selectedPhotos[index] = file;
-
-    // Показываем превью
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        slot.style.backgroundImage = `url(${e.target.result})`;
-        slot.style.backgroundSize = 'cover';
-        slot.style.backgroundPosition = 'center';
-        slot.innerHTML = '<div class="mini-text" style="background: rgba(0,0,0,0.5); color: white; padding: 4px;">Изменить</div>';
-    };
-    reader.readAsDataURL(file);
-
-    console.log(`Фото ${index} выбрано:`, file.name);
 }
 
 async function uploadPhotos(reportId) {
@@ -346,30 +307,8 @@ function displayUserGreeting() {
     if (telegramUser) {
         const username = telegramUser.username || telegramUser.first_name || 'Пользователь';
         console.log(`Добро пожаловать, @${username}!`);
-        // Можно добавить визуальное приветствие в интерфейсе, если нужно
     }
 }
-
-// Инициализация при загрузке страницы
-window.addEventListener('DOMContentLoaded', function() {
-    // Инициализируем Telegram Mini App
-    initTelegramApp();
-
-    // Инициализируем DaData автоподсказки
-    initDadataAutocomplete();
-
-    loadApplications();
-    const submitBtn = document.querySelector('.submit-btn');
-    if (submitBtn) {
-        submitBtn.addEventListener('click', submitApplication);
-    }
-
-    // Обработчик кнопки "Использовать текущее местоположение"
-    const locationBtn = document.querySelector('.button-add-adress');
-    if (locationBtn) {
-        locationBtn.addEventListener('click', useCurrentLocation);
-    }
-});
 
 // Функция для получения местоположения из Telegram
 function useCurrentLocation() {
@@ -489,5 +428,80 @@ async function reverseGeocode(lat, lon) {
     }
 }
 
-// Автообновление списка заявок каждые 10 секунд
-setInterval(loadApplications, 10000);
+//=================Инициализация при загрузке страницы=======================
+window.addEventListener('DOMContentLoaded', function() {
+    // Инициализируем Telegram Mini App
+    initTelegramApp();
+    // Инициализируем DaData автоподсказки
+    initDadataAutocomplete();
+
+    document.querySelectorAll('.photo-slot input[type="file"]').forEach((input, index) => {
+        input.addEventListener('change', e => {
+            const file = e.target.files[0];
+            const slot = input.parentElement;
+            
+            if (!file) return;
+
+            // Проверка размера (макс 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Файл слишком большой. Максимум 10 МБ');
+                return;
+            }
+            
+            if (!file.type.startsWith('image/')) {
+                alert('Пожалуйста, выберите изображение');
+                return;
+            }
+            
+            // Превью
+            const reader = new FileReader(); // создается обьект для чтения файлов
+            reader.onload = function(e) {
+                slot.style.backgroundImage = `url(${e.target.result})`;
+                slot.style.backgroundSize = `cover`;
+                slot.style.backgroundPosition = `center`;
+                slot.style.backgroundRepeat = 'no-repeat';
+                slot.style.border = `1px solid var(--main-color)`;
+                
+                const miniText = slot.querySelector('.mini-text');
+                if (miniText) {
+                    miniText.textContent = 'Изменить';
+                    miniText.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                    miniText.style.padding = '0px 10px';
+                    miniText.style.borderRadius = '8px';
+                }
+                
+                const photoIcon = slot.querySelector('.photo-icon');
+                if (photoIcon) {
+                    photoIcon.style.display = 'none';
+                }
+            };
+            reader.readAsDataURL(file);
+            
+            // Сохраняем файл
+            selectedPhotos[index] = file;
+        });
+    });
+
+    // Обработчик кнопки "Использовать текущее местоположение"
+    const locationBtn = document.querySelector('.button-add-adress');
+    if (locationBtn) {
+        locationBtn.addEventListener('click', useCurrentLocation);
+    }
+
+    // Автораспрямление для textarea
+    document.querySelectorAll('.auto-expand').forEach(function(textarea) {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        });
+    });
+
+    loadApplications();
+    const submitBtn = document.querySelector('.submit-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitApplication);
+    }
+
+    // Автообновление списка заявок каждые 10 секунд
+    setInterval(loadApplications, 10000);
+});

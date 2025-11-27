@@ -254,7 +254,7 @@ def upload_photo():
     try:
         file_data = file.read()
         ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
-        file_data = shakalize(file_data)
+        file_data = shakalize(file_data)     # remove this line if it doesn't work
         s3_key = f"photos/{report_id}/{uuid.uuid4()}.{ext}"
         content_type = file.content_type or 'image/jpeg'
 

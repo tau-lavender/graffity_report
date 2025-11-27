@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app, send_file
 from geoalchemy2.shape import to_shape, from_shape
 from src.models import User, GraffitiReport, ReportPhoto
-from src.util import get_db_session, get_file_from_s3, upload_file_to_s3, get_file_url
+from src.util import get_db_session, get_file_from_s3, upload_file_to_s3, get_file_url, shakalize
 from src.singleton import SingletonClass
 from src.dadata_helper import normalize_address
 from decouple import config
@@ -256,6 +256,7 @@ def upload_photo():
         ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
         s3_key = f"photos/{report_id}/{uuid.uuid4()}.{ext}"
         content_type = file.content_type or 'image/jpeg'
+        file_data = shakalize(file_data)     # remove this line if it doesn't work
 
         upload_file_to_s3(file_data, s3_key, content_type)
 

@@ -6,6 +6,8 @@ from botocore.client import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from src.models import Base, User
+from PIL import Image
+import io
 
 
 def get_database_url() -> str:
@@ -204,3 +206,27 @@ def delete_file_from_s3(s3_key: str) -> bool:
     except Exception as e:
         print(f"S3 delete error: {e}")
         return False
+
+
+def shakalize(file_data: bytes) -> bytes:
+    try:
+        with Image.open(file_data) as initial_image:
+            initial_size = initial_image.size
+            if any(map(lambda x: x > 720, initial_size)):
+                width, height = initial_size
+                new_size = (
+                    720 if width / height >= 1 else int(720 * width / height),
+                    720 if height / width >= 1 else int(720 * height / width),
+                )
+            else:
+                new_size = initial_image.size
+
+            new_image = initial_image.resize(new_size)
+            byte_arr = io.BytesIO()
+            new_image.save(byte_arr)
+            byte_data = byte_arr.getvalue()
+
+        return byte_data
+
+    except Exception as e:
+        print(f"Failed to shakalize: {e}")

@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from src.models import Base, User
 
+
 def get_database_url() -> str:
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:

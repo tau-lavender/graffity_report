@@ -5,13 +5,14 @@ from src.util import get_db_session, get_file_from_s3, upload_file_to_s3, get_fi
 from src.singleton import SingletonClass
 from src.dadata_helper import normalize_address
 from decouple import config
-from shapely.geometry import Point # type: ignore
+from shapely.geometry import Point  # type: ignore
 import os
 import io
 import uuid
 
 admin_bp = Blueprint('admin', __name__, template_folder='../templates')
 singleton = SingletonClass()
+
 
 @admin_bp.route('/api/admin/verify', methods=['POST'])
 def verify_password():
@@ -26,6 +27,7 @@ def verify_password():
         return jsonify(success=False, error='Invalid password'), 403
 
     return jsonify(success=True)
+
 
 @admin_bp.route('/api/debug', methods=['GET'])
 def debug():
@@ -49,6 +51,7 @@ def debug():
     except Exception as e:
         current_app.logger.error(f"DB error: {e}")
         return jsonify(error=str(e)), 500
+
 
 @admin_bp.route('/api/apply', methods=['POST'])
 def apply():
@@ -129,6 +132,7 @@ def apply():
         current_app.logger.error(f"Error in /api/apply: {e}")
         return jsonify(success=False, error=str(e)), 500
 
+
 @admin_bp.route('/api/applications', methods=['GET'])
 def get_applications():
     user_id = request.args.get('telegram_user_id', None)
@@ -195,6 +199,7 @@ def get_applications():
     except Exception as e:
         current_app.logger.error(f"Error in /api/applications: {e}")
         return jsonify(error=str(e)), 500
+
 
 @admin_bp.route('/api/applications/moderate', methods=['POST'])
 def moderate():

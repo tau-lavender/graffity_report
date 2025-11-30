@@ -1,12 +1,12 @@
 import os
 from contextlib import contextmanager
-from typing import Optional
-import boto3
-from botocore.client import Config
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from typing import Optional, Any
+import boto3  # type: ignore[import-not-found]
+from botocore.client import Config  # type: ignore[import-not-found]
+from sqlalchemy import create_engine  # type: ignore[import-not-found]
+from sqlalchemy.orm import sessionmaker, Session  # type: ignore[import-not-found]
 from src.models import Base, User
-from PIL import Image
+from PIL import Image  # type: ignore[import-not-found]
 import io
 
 
@@ -32,8 +32,8 @@ def init_db(engine):
     Base.metadata.create_all(engine)
 
 
-_engine = None
-_SessionLocal = None
+_engine: Any = None
+_SessionLocal: Any = None
 
 
 def setup_database(app):
@@ -46,7 +46,7 @@ def setup_database(app):
 
     try:
         _engine = create_db_engine()
-        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)  # type: ignore[no-redef]
         app.config["DB_ENGINE"] = _engine
         app.logger.info("Database engine initialized")
     except Exception as e:
@@ -59,7 +59,7 @@ def get_db_session():
     if _SessionLocal is None:
         raise RuntimeError("Database not initialized. Call setup_database() first.")
 
-    session = _SessionLocal()
+    session = _SessionLocal()  # type: ignore[call-arg]
     try:
         yield session
         session.commit()
@@ -210,23 +210,44 @@ def delete_file_from_s3(s3_key: str) -> bool:
 
 def shakalize(file_data: bytes) -> bytes:
     try:
-        with Image.open(file_data) as initial_image:
-            initial_size = initial_image.size
-            if any(map(lambda x: x > 720, initial_size)):
-                width, height = initial_size
-                new_size = (
-                    720 if width / height >= 1 else int(720 * width / height),
-                    720 if height / width >= 1 else int(720 * height / width),
-                )
+        Image.MAX_IMAGE_PIXELS = 50_000_000
+        with Image.open(io.BytesIO(file_data)) as initial_image:
+            fmt = (initial_image.format or '').upper()
+            allowed = {"JPEG", "JPG", "PNG", "WEBP"}
+            if fmt and fmt not in allowed:
+                raise ValueError(f"Неподдерживаемый формат: {fmt}")
+            try:
+                initial_image.seek(0)
+            except Exception:
+                pass
+            width, height = initial_image.size
+            if width <= 0 or height <= 0:
+                raise ValueError("Некорректные размеры изображения")
+            max_side = 720
+            if max(width, height) > max_side:
+                if width >= height:
+                    new_size = (max_side, int(max_side * height / width))
+                else:
+                    new_size = (int(max_side * width / height), max_side)
             else:
-                new_size = initial_image.size
-
-            new_image = initial_image.resize(new_size)
+                new_size = (width, height)
+            if initial_image.mode not in ("RGB", "L"):
+                working = initial_image.convert("RGB")
+            else:
+                working = initial_image
+            new_image = working.resize(new_size)
             byte_arr = io.BytesIO()
-            new_image.save(byte_arr)
-            byte_data = byte_arr.getvalue()
+            new_image.save(
+                byte_arr,
+                format='JPEG',
+                quality=80,
+                optimize=True,
+                progressive=True
+            )
+            byte_arr.seek(0)
+            return byte_arr.getvalue()
 
-        return byte_data
-
+    except ValueError:
+        raise
     except Exception as e:
-        print(f"Failed to shakalize: {e}")
+        raise ValueError(f"Не удалось обработать изображение: {e}")

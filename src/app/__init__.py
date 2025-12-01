@@ -32,7 +32,6 @@ def create_app():
     for blueprint in blueprints:
         app.register_blueprint(blueprint)
 
-    # Error handlers (JSON responses)
     @app.errorhandler(RequestEntityTooLarge)
     def handle_large_file(e):
         return jsonify(success=False, error="Размер файла превышает 25 МБ"), 413
@@ -43,7 +42,6 @@ def create_app():
 
     @app.errorhandler(Exception)
     def handle_generic_error(e):
-        # Fallback for uncaught exceptions
         return jsonify(success=False, error=str(e)), 500
 
     @app.route('/', methods=['GET'])
@@ -122,5 +120,11 @@ def create_app():
             ), 200
         except Exception as e:
             return jsonify(ok=False, error=str(e)), 500
+
+    @app.route('/api/config', methods=['GET'])
+    def get_config():
+        return jsonify({
+            'yandex_maps_api_key': os.environ.get('YANDEX_MAPS_API_KEY', '')
+        }), 200
 
     return app

@@ -36,10 +36,69 @@
 }
 
 body {
-    padding: 16px;
+    padding: 0;
     margin: 0 auto;
     background-color: var(--bg-color);
     min-height: 100vh;
+}
+
+.main-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    min-height: 100vh;
+}
+
+@media (max-width: 1024px) {
+    .main-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.map-section {
+    position: sticky;
+    top: 16px;
+    height: fit-content;
+}
+
+.list-section {
+    overflow-y: auto;
+}
+
+.map-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--inactive-color);
+    border-radius: 8px;
+    background-color: var(--white-color);
+    color: var(--main-color);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    background-color: rgba(78, 59, 44, 0.05);
+}
+
+.filter-btn.active {
+    background-color: var(--main-color);
+    color: var(--white-color);
+    border-color: var(--main-color);
+}
+
+#map {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 #app-list {
@@ -57,6 +116,13 @@ body {
     padding: 16px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     border: 1px solid rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.app-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
 }
 
 .app-header {

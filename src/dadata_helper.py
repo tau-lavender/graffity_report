@@ -1,6 +1,6 @@
 import os
 from typing import Optional, Dict, Any
-from dadata import Dadata
+from dadata import Dadata  # type: ignore[import-not-found]
 
 
 def get_dadata_client() -> Optional[Dadata]:

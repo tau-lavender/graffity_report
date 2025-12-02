@@ -1,6 +1,6 @@
 from datetime import datetime
-from geoalchemy2 import Geography
-from sqlalchemy import (
+from geoalchemy2 import Geography  # type: ignore[import-not-found]
+from sqlalchemy import (  # type: ignore[import-not-found]
     BigInteger,
     Column,
     DateTime,
@@ -12,8 +12,8 @@ from sqlalchemy import (
     Index,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.dialects.postgresql import UUID  # type: ignore[import-not-found]
+from sqlalchemy.orm import DeclarativeBase, relationship  # type: ignore[import-not-found]
 
 
 class Base(DeclarativeBase):

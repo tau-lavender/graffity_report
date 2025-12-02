@@ -10,6 +10,7 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
 
         <link rel="stylesheet" href="admin.css">
+        <script id="yandex-maps-script"></script>
     </head>
     <body>
         <div class="login-overlay">
@@ -21,10 +22,28 @@
             </div>
         </div>
 
-        <div><ul id="app-list"></ul></div>
+        <div class="main-container">
+            <div class="map-section">
+                <div class="map-controls">
+                    <button class="filter-btn active" onclick="filterByStatus('all')">Все</button>
+                    <button class="filter-btn" onclick="filterByStatus('pending')">Ожидают</button>
+                    <button class="filter-btn" onclick="filterByStatus('approved')">Одобрено</button>
+                    <button class="filter-btn" onclick="filterByStatus('declined')">Отклонено</button>
+                </div>
+                <div id="map" style="width: 100%; height: 600px;"></div>
+            </div>
+
+            <div class="list-section">
+                <ul id="app-list"></ul>
+            </div>
+        </div>
 
     <script src="config.js"></script>
     <script>
+        let myMap = null;
+        let allApplications = [];
+        let placemarksById = {};
+
         function sha512(str) {
             return crypto.subtle.digest("SHA-512", new TextEncoder("utf-8").encode(str)).then(buf => {
                 return Array.prototype.map.call(new Uint8Array(buf), x=>(('00'+x.toString(16)).slice(-2))).join('');
@@ -92,7 +111,7 @@
             const statusKey = app.status || 'pending';
             const created = formatDate(app.created_at);
 
-            return `<li class="app-card">
+            return `<li class="app-card" data-report-id="${reportId}" onclick="focusOnMarker(${numericId})">
                 <div class="app-header">
                     <div class="app-id">#${escapeHtml(reportId)}</div>
                     <span class="status-chip ${statusKey}">${STATUS_TEXTS[statusKey] || STATUS_TEXTS.pending}</span>
@@ -106,10 +125,132 @@
                 </div>
                 ${renderPhotosSection(app.photos, reportId)}
                 <div class="app-actions">
-                    <button onclick="moderate(${numericId}, 'approved')">Одобрить</button>
-                    <button onclick="moderate(${numericId}, 'declined')">Отклонить</button>
+                    <button onclick="event.stopPropagation(); moderate(${numericId}, 'approved')">Одобрить</button>
+                    <button onclick="event.stopPropagation(); moderate(${numericId}, 'declined')">Отклонить</button>
                 </div>
             </li>`;
+        }
+
+        function focusOnMarker(reportId) {
+            const placemark = placemarksById[reportId];
+            if (placemark && myMap) {
+                myMap.setCenter(placemark.geometry.getCoordinates(), 16, {
+                    checkZoomRange: true,
+                    duration: 300
+                });
+                placemark.balloon.open();
+            }
+        }
+
+        function filterByStatus(status) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            Object.values(placemarksById).forEach(placemark => {
+                const pmStatus = placemark.properties.get('status');
+                const visible = status === 'all' || pmStatus === status;
+                placemark.options.set('visible', visible);
+            });
+
+            const filtered = status === 'all'
+                ? allApplications
+                : allApplications.filter(app => app.status === status);
+
+            const listHtml = filtered.length
+                ? filtered.map(renderAppCard).join('')
+                : '<li class="app-card"><div class="title-text">Заявки отсутствуют</div></li>';
+            document.getElementById('app-list').innerHTML = listHtml;
+        }
+
+        async function initYandexMap() {
+            try {
+                const configRes = await fetch(`${API_URL}/api/config`);
+                const config = await configRes.json();
+                const apiKey = config.yandex_maps_api_key;
+
+                if (!apiKey) {
+                    console.warn('Yandex Maps API key not configured');
+                    document.getElementById('map').innerHTML = '<div style="padding: 20px; text-align: center;">Карта недоступна: API ключ не настроен</div>';
+                    return;
+                }
+
+                const script = document.getElementById('yandex-maps-script');
+                script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`;
+                script.onload = () => {
+                    ymaps.ready(initMap);
+                };
+                script.onerror = () => {
+                    console.error('Failed to load Yandex Maps API');
+                    document.getElementById('map').innerHTML = '<div style="padding: 20px; text-align: center;">Ошибка загрузки карты</div>';
+                };
+            } catch (error) {
+                console.error('Error initializing Yandex Maps:', error);
+            }
+        }
+
+        function initMap() {
+            myMap = new ymaps.Map("map", {
+                center: [55.751244, 37.618423],
+                zoom: 10,
+                controls: ['zoomControl', 'searchControl', 'typeSelector', 'fullscreenControl', 'geolocationControl']
+            });
+
+            loadApplicationsToMap();
+        }
+
+        function getPresetByStatus(status) {
+            switch(status) {
+                case 'approved': return 'islands#greenIcon';
+                case 'declined': return 'islands#redIcon';
+                default: return 'islands#blueIcon';
+            }
+        }
+
+        function loadApplicationsToMap() {
+            allApplications.forEach(app => {
+                if (app.latitude && app.longitude) {
+                    const reportId = app.id || app.report_id || 0;
+                    const coords = [app.latitude, app.longitude];
+
+                    const photosHtml = (app.photos || []).length > 0
+                        ? `<div style="margin-top: 8px">${(app.photos || []).map(p => {
+                            const url = p.url?.startsWith('/') ? `${API_URL}${p.url}` : p.url;
+                            return `<img src="${url}" style="max-width: 200px; margin: 4px;" />`;
+                        }).join('')}</div>`
+                        : '';
+
+                    const placemark = new ymaps.Placemark(
+                        coords,
+                        {
+                            balloonContentHeader: `<strong>${escapeHtml(app.normalized_address || 'Адрес не указан')}</strong>`,
+                            balloonContentBody: `
+                                <div style="max-width: 300px;">
+                                    <p><b>Статус:</b> ${STATUS_TEXTS[app.status] || 'Неизвестно'}</p>
+                                    <p><b>Описание:</b> ${escapeHtml(app.description || app.comment || '—')}</p>
+                                    <p><b>Создано:</b> ${formatDate(app.created_at)}</p>
+                                    ${photosHtml}
+                                </div>
+                            `,
+                            balloonContentFooter: `<small>ID: ${reportId}</small>`,
+                            hintContent: `${escapeHtml(app.normalized_address || '')} (${STATUS_TEXTS[app.status] || ''})`,
+                            status: app.status
+                        },
+                        {
+                            preset: getPresetByStatus(app.status)
+                        }
+                    );
+
+                    myMap.geoObjects.add(placemark);
+                    placemarksById[reportId] = placemark;
+                };
+            });
+
+            if (myMap.geoObjects.getLength() > 0) {
+                myMap.setBounds(myMap.geoObjects.getBounds(), {
+                    checkZoomRange: true,
+                    zoomMargin: 50
+                });
+            }
         }
 
         let admin_pw = '';
@@ -131,7 +272,8 @@
                 }
 
                 document.querySelector('.login-overlay').style.display = 'none';
-                getApps();
+                await getApps();
+                await initYandexMap();
             } catch (error) {
                 console.error('Error verifying password:', error);
                 alert('Ошибка проверки пароля');
@@ -141,17 +283,29 @@
         async function getApps() {
             let res = await fetch(`${API_URL}/api/applications`);
             let apps = await res.json();
+            allApplications = apps;
+
             const listHtml = apps.length
                 ? apps.map(renderAppCard).join('')
                 : '<li class="app-card"><div class="title-text">Заявки отсутствуют</div></li>';
             document.getElementById('app-list').innerHTML = listHtml;
-        }        async function moderate(idx, status) {
+        }
+
+        async function moderate(idx, status) {
             await fetch(`${API_URL}/api/applications/moderate`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({idx, status, admin_password: admin_pw})
             });
-            getApps();
+
+            placemarksById = {};
+            if (myMap) {
+                myMap.geoObjects.removeAll();
+            }
+            await getApps();
+            if (myMap) {
+                loadApplicationsToMap();
+            }
         }
         </script>
     </body>

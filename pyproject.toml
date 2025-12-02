@@ -9,13 +9,22 @@ dependencies = [
     "flask_cors>=6.0.1",
     "flask-sqlalchemy>=3.1.1",
     "geoalchemy2>=0.14.0",
+    "shapely",
     "psycopg2-binary>=2.9.9",
     "boto3>=1.34.0",
     "python-decouple>=3.8.0",
     "pre-commit",
     "dadata>=21.12.0",
     "gunicorn>=21.2.0",
+    "shapely>=2.1.2",
 ]
 
 [project.scripts]
 start = "gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 --chdir src main:app"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "pytest-mock",
+    "requests",
+]

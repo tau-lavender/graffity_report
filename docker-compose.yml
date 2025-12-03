@@ -1,9 +1,10 @@
 services:
-  db:
+  postgres:
     image: postgis/postgis:15-3.3
+    container_name: graffiti_postgres
     environment:
       POSTGRES_DB: graffiti_db
-      POSTGRES_USER: admin
+      POSTGRES_USER: graffiti_user
       POSTGRES_PASSWORD: securepass123
     ports:
       - "5432:5432"
@@ -12,9 +13,14 @@ services:
       - ./init_db.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - graffiti-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graffiti_user -d graffiti_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: graffiti_minio
     command: server /data --console-address ":9001"
     ports:
@@ -24,54 +30,40 @@ services:
       - minio_data:/data
     environment:
       MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
     networks:
       - graffiti-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  backend:
-    build: ./backend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graffiti_app
     ports:
       - "8080:8080"
-    env_file:
-      - .env
     environment:
-      - DB_HOST=db
-      - DB_NAME=graffiti_db
-      - DB_USER=admin
-      - DB_PASSWORD=securepass123
+      - DATABASE_URL=postgresql://graffiti_user:securepass123@postgres:5432/graffiti_db
       - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=graffiti_bot
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=graffiti-reports
-      - DADATA_TOKEN=${DADATA_TOKEN}
-      - DADATA_SECRET=${DADATA_SECRET}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - DADATA_TOKEN=${DADATA_TOKEN:-your_token}
+      - DADATA_SECRET=${DADATA_SECRET:-your_secret}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:-}
+      - YANDEX_MAPS_API_KEY=${YANDEX_MAPS_API_KEY:-}
     depends_on:
-      - db
-      - minio
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     networks:
       - graffiti-net
-
-  bot:
-    build: ./bot
-    env_file:
-      - .env
-    environment:
-      - BOT_TOKEN=${BOT_TOKEN}
-      - DB_HOST=db
-      - DB_NAME=graffiti_db
-      - DB_USER=admin
-      - DB_PASSWORD=securepass123
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=graffiti_bot
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - MINIO_BUCKET=graffiti-reports
-      - DADATA_TOKEN=${DADATA_TOKEN}
-      - DADATA_SECRET=${DADATA_SECRET}
-    depends_on:
-      - backend
-    networks:
-      - graffiti-net
+    restart: unless-stopped
 
 volumes:
   pgdata:

@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
-from sqlalchemy import text, inspect
-from flask_cors import CORS
+from flask import Flask, jsonify  # type: ignore[import-not-found]
+from werkzeug.exceptions import RequestEntityTooLarge  # type: ignore[import-not-found]
+from sqlalchemy import text, inspect  # type: ignore[import-not-found]
+from flask_cors import CORS  # type: ignore[import-untyped]
 from src.app.admin import blueprints
 from src.util import setup_database, init_minio, get_s3_client
 from src.models import Base
@@ -9,6 +10,7 @@ import os
 
 def create_app():
     app = Flask(__name__)
+    app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
     CORS(app,
          origins="*",
@@ -29,6 +31,18 @@ def create_app():
 
     for blueprint in blueprints:
         app.register_blueprint(blueprint)
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_large_file(e):
+        return jsonify(success=False, error="Размер файла превышает 25 МБ"), 413
+
+    @app.errorhandler(ValueError)
+    def handle_value_error(e):
+        return jsonify(success=False, error=str(e)), 400
+
+    @app.errorhandler(Exception)
+    def handle_generic_error(e):
+        return jsonify(success=False, error=str(e)), 500
 
     @app.route('/', methods=['GET'])
     def root():
@@ -106,5 +120,11 @@ def create_app():
             ), 200
         except Exception as e:
             return jsonify(ok=False, error=str(e)), 500
+
+    @app.route('/api/config', methods=['GET'])
+    def get_config():
+        return jsonify({
+            'yandex_maps_api_key': os.environ.get('YANDEX_MAPS_API_KEY', '')
+        }), 200
 
     return app

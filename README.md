@@ -1,4 +1,9 @@
 # Graffity Report Telegram mini-app
+<p align="center">
+  <a href="https://skillicons.dev">
+    <img src="https://skillicons.dev/icons?i=python,flask,postgres,js,html,css,docker," />
+  </a>
+</p>
 
 ---
 ## Короткое описание
@@ -26,13 +31,6 @@ docker compose up
 - Отправить заявку
 
 ---
-# Стек
- - Frontend: HTML + CSS + JS
-- Backend: Python (uv), Flask
-- DataBase: PostgreSQL + PostGis
-- Интеграции: DaData (адреса + координаты), MiniO/S3 (для фото)
-- Инфраструктура: Docker + Railway
-
 ## Авторы
 Курсовой проект студентов МАИ (группа М8О-104БВ-25):  
 - Бычков Евгений

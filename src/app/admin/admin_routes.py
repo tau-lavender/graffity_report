@@ -105,8 +105,20 @@ def apply():
                 fias_id = normalized_data.get('fias_id')
                 lat = normalized_data.get('latitude')
                 lon = normalized_data.get('longitude')
+                country = normalized_data.get('country')
+
+                if country and country not in ['Россия', 'Russia', 'RU', 'RUS']:
+                    return jsonify(success=False, error='Адрес должен находиться в Российской Федерации'), 400
+
                 current_app.logger.info(f"Normalized address: {normalized_addr}")
             else:
+                if raw_address:
+                    normalized_data = normalize_address(raw_address)
+                    country = normalized_data.get('country')
+
+                    if country and country not in ['Россия', 'Russia', 'RU', 'RUS']:
+                        return jsonify(success=False, error='Адрес должен находиться в Российской Федерации'), 400
+
                 normalized_addr = raw_address
                 lat = data.get('latitude')
                 lon = data.get('longitude')

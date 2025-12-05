@@ -47,7 +47,7 @@ function fetchAddressSuggestions(query, container, input) {
         body: JSON.stringify({
             query: query,
             count: 5,
-            locations: [{ country: '*' }]
+            locations: [{ country: 'Россия' }]
         })
     })
     .then(response => response.json())
@@ -75,6 +75,12 @@ function displaySuggestions(suggestions, container, input) {
         item.textContent = suggestion.value;
 
         item.addEventListener('click', function() {
+            const country = suggestion.data.country;
+            if (country && country !== 'Россия' && country !== 'Russia' && country !== 'RU' && country !== 'RUS') {
+                alert('Адрес должен находиться в Российской Федерации');
+                return;
+            }
+
             // Заполняем поле адресом
             input.value = suggestion.value;
 

@@ -30,13 +30,6 @@ async function submitApplication() {
         return;
     }
 
-    // Блокируем кнопку на время отправки
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Отправка...';
-    }
-
-    // Получаем ФИАС данные из data-атрибута
     let fiasData = null;
     try {
         const fiasStr = addressInput.getAttribute('data-fias');
@@ -45,6 +38,31 @@ async function submitApplication() {
         }
     } catch (e) {
         console.warn('Failed to parse FIAS data:', e);
+    }
+
+    if (fiasData && fiasData.country) {
+        const country = fiasData.country;
+        if (country && country !== 'Россия' && country !== 'Russia' && country !== 'RU' && country !== 'RUS') {
+            alert('Адрес должен находиться в Российской Федерации');
+            return;
+        }
+    }
+
+    // Блокируем кнопку на время отправки
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
+    }
+
+    if (!fiasData) {
+        try {
+            const fiasStr = addressInput.getAttribute('data-fias');
+            if (fiasStr) {
+                fiasData = JSON.parse(fiasStr);
+            }
+        } catch (e) {
+            console.warn('Failed to parse FIAS data:', e);
+        }
     }
 
     // Отправляем JSON с данными пользователя Telegram и ФИАС
@@ -149,12 +167,12 @@ function resetForm() {
             miniText.style.padding = '0';
             miniText.style.borderRadius = '';
         }
-        
+
         const photoIcon = slot.querySelector('.photo-icon');
         if (photoIcon) {
             photoIcon.style.display = '';
         }
-        
+
         const input = slot.querySelector('input[type="file"]');
         if (input) {
             input.value = '';
@@ -398,7 +416,8 @@ async function reverseGeocode(lat, lon) {
             body: JSON.stringify({
                 lat: lat,
                 lon: lon,
-                count: 1
+                count: 1,
+                locations: [{ country: 'Россия' }]
             })
         });
 
@@ -415,11 +434,19 @@ async function reverseGeocode(lat, lon) {
 
         if (data.suggestions && data.suggestions.length > 0) {
             const suggestion = data.suggestions[0];
+
+            const country = suggestion.data.country;
+            if (country && country !== 'Россия' && country !== 'Russia' && country !== 'RU' && country !== 'RUS') {
+                alert('Адрес должен находиться в Российской Федерации');
+                return;
+            }
+
             const address = suggestion.value;
             const fiasData = {
                 fias_id: suggestion.data.fias_id,
                 geo_lat: suggestion.data.geo_lat,
-                geo_lon: suggestion.data.geo_lon
+                geo_lon: suggestion.data.geo_lon,
+                country: suggestion.data.country
             };
 
             // Устанавливаем адрес в поле
@@ -448,7 +475,7 @@ window.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('change', e => {
             const file = e.target.files[0];
             const slot = input.parentElement;
-            
+
             if (!file) return;
 
             // Проверка размера (макс 10MB)
@@ -456,12 +483,12 @@ window.addEventListener('DOMContentLoaded', function() {
                 alert('Файл слишком большой. Максимум 10 МБ');
                 return;
             }
-            
+
             if (!file.type.startsWith('image/')) {
                 alert('Пожалуйста, выберите изображение');
                 return;
             }
-            
+
             // Превью
             const reader = new FileReader(); // создается обьект для чтения файлов
             reader.onload = function(e) {
@@ -470,7 +497,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 slot.style.backgroundPosition = `center`;
                 slot.style.backgroundRepeat = 'no-repeat';
                 slot.style.border = `1px solid var(--main-color)`;
-                
+
                 const miniText = slot.querySelector('.mini-text');
                 if (miniText) {
                     miniText.textContent = 'Изменить';
@@ -478,14 +505,14 @@ window.addEventListener('DOMContentLoaded', function() {
                     miniText.style.padding = '0px 10px';
                     miniText.style.borderRadius = '8px';
                 }
-                
+
                 const photoIcon = slot.querySelector('.photo-icon');
                 if (photoIcon) {
                     photoIcon.style.display = 'none';
                 }
             };
             reader.readAsDataURL(file);
-            
+
             // Сохраняем файл
             selectedPhotos[index] = file;
         });

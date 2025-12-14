@@ -14,6 +14,10 @@ function initDadataAutocomplete() {
     addressInput.addEventListener('input', function(e) {
         const query = e.target.value.trim();
 
+        // Очищаем ФИАС данные при ручном изменении адреса
+        addressInput.removeAttribute('data-fias');
+        selectedFiasData = null;
+
         // Очищаем предыдущий таймаут
         clearTimeout(dadataTimeout);
 

@@ -40,6 +40,12 @@ async function submitApplication() {
         console.warn('Failed to parse FIAS data:', e);
     }
 
+    // Проверка, что адрес выбран из выпадающего списка (есть ФИАС данные)
+    if (!fiasData || !fiasData.fias_id) {
+        alert('Пожалуйста, выберите адрес из выпадающего списка');
+        return;
+    }
+
     if (fiasData && fiasData.country) {
         const country = fiasData.country;
         if (country && country !== 'Россия' && country !== 'Russia' && country !== 'RU' && country !== 'RUS') {
